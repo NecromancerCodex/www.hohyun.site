@@ -1,0 +1,6 @@
+[submodule "chat.hohyun.site"]
+	path = chat.hohyun.site
+	url = https://github.com/NecromancerCodex/chat.hohyun.site.git
+[submodule "vision.hohyun.site"]
+	path = vision.hohyun.site
+	url = https://github.com/NecromancerCodex/vision.hohyun.site.git
