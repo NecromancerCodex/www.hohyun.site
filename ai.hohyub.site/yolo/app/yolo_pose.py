@@ -22,8 +22,21 @@ def estimate_pose(image_path: str, model_path: str = None, save_dir: str = None)
     
     # 모델 경로 설정 (포즈 모델)
     if model_path is None:
-        # YOLO 포즈 모델 (yolo11n-pose.pt)
-        model_path = str(data_dir / 'yolo11n-pose.pt')
+        # S3에서 모델 로드 시도
+        import os
+        s3_bucket = os.getenv("S3_MODEL_BUCKET")
+        if s3_bucket:
+            try:
+                from utils.s3_model_loader import load_yolo_model_from_s3
+                model_path = load_yolo_model_from_s3("yolo11n-pose.pt", bucket_name=s3_bucket)
+                print(f"✅ S3에서 모델 로드 완료: {model_path}")
+            except Exception as e:
+                print(f"⚠️  S3에서 모델 로드 실패: {e}")
+                print("   로컬 모델 경로로 폴백합니다...")
+                model_path = str(data_dir / 'yolo11n-pose.pt')
+        else:
+            # YOLO 포즈 모델 (yolo11n-pose.pt)
+            model_path = str(data_dir / 'yolo11n-pose.pt')
     
     # 저장 디렉토리 설정
     if save_dir is None:

@@ -18,11 +18,57 @@ HF_CACHE_DIR = Path(os.getenv("HF_HOME", str(BASE_DIR / ".hf_cache")))
 
 # RTX 4060 8GB 최적화: SDXL 기본
 # 1. 환경변수 MODEL_ID 우선
-# 2. 로컬 모델 폴더 자동 인식 (model/model_index.json 존재 + 올바른 구조 확인)
-# 3. 기본값: Hugging Face 모델
+# 2. S3에서 모델 로드 (S3_MODEL_BUCKET 설정 시)
+# 3. 로컬 모델 폴더 자동 인식 (model/model_index.json 존재 + 올바른 구조 확인)
+# 4. 기본값: Hugging Face 모델
 MODEL_ID_ENV = os.getenv("MODEL_ID")
 if MODEL_ID_ENV:
     MODEL_ID = MODEL_ID_ENV
+elif os.getenv("S3_MODEL_BUCKET"):
+    # S3에서 모델 로드
+    try:
+        from app.utils.s3_model_loader import load_model_directory_from_s3
+        model_dir_name = os.getenv("S3_MODEL_DIR_NAME", "sdxl_base")
+        print(f"📦 S3에서 모델 로드 시도: {os.getenv('S3_MODEL_BUCKET')}/{model_dir_name}")
+        MODEL_ID = load_model_directory_from_s3(
+            model_dir_name=model_dir_name,
+            bucket_name=os.getenv("S3_MODEL_BUCKET"),
+        )
+        print(f"✅ S3에서 모델 로드 완료: {MODEL_ID}")
+    except Exception as e:
+        print(f"⚠️  S3에서 모델 로드 실패: {e}")
+        print("   로컬 모델 경로로 폴백합니다...")
+        # S3 로드 실패 시 로컬 경로로 폴백
+        if (LOCAL_MODEL_DIR / "model_index.json").exists():
+            # 로컬 모델 형식 확인
+            # 1. 단일 safetensors 파일 형식 (sd_xl_base_1.0.safetensors, sdxl.vae.safetensors)
+            has_unet_file = (LOCAL_MODEL_DIR / "sd_xl_base_1.0.safetensors").exists()
+            has_vae_file = (LOCAL_MODEL_DIR / "sdxl.vae.safetensors").exists()
+            
+            # 2. 표준 diffusers 형식 (서브모델 폴더)
+            has_text_encoder = (LOCAL_MODEL_DIR / "text_encoder").exists()
+            has_unet = (LOCAL_MODEL_DIR / "unet").exists()
+            has_vae = (LOCAL_MODEL_DIR / "vae").exists()
+            
+            if has_unet_file and has_vae_file:
+                # 단일 safetensors 파일 형식
+                MODEL_ID = str(LOCAL_MODEL_DIR)
+                print(f"📁 로컬 모델 감지 (단일 safetensors 형식): {MODEL_ID}")
+            elif has_text_encoder and has_unet and has_vae:
+                # 표준 diffusers 형식
+                MODEL_ID = str(LOCAL_MODEL_DIR)
+                print(f"📁 로컬 모델 감지 (표준 diffusers 형식): {MODEL_ID}")
+            else:
+                raise ValueError(
+                    f"로컬 모델 구조가 올바르지 않습니다.\n"
+                    f"로컬 모델 경로: {LOCAL_MODEL_DIR}"
+                )
+        else:
+            raise ValueError(
+                f"S3 및 로컬 모델을 모두 찾을 수 없습니다.\n"
+                f"S3_MODEL_BUCKET을 설정하거나 로컬 모델을 배치하세요.\n"
+                f"로컬 모델 경로: {LOCAL_MODEL_DIR}"
+            )
 elif (LOCAL_MODEL_DIR / "model_index.json").exists():
     # 로컬 모델 형식 확인
     # 1. 단일 safetensors 파일 형식 (sd_xl_base_1.0.safetensors, sdxl.vae.safetensors)

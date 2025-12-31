@@ -12,3 +12,4 @@ ultralytics>=8.0.0
 # 기타
 python-dotenv
 pydantic
+boto3>=1.28.0
