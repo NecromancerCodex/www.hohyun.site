@@ -1,0 +1,256 @@
+# 공통 로깅 설정 (로그 로테이션으로 용량 제한)
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"      # 로그 파일 최대 크기 (10MB)
+      max-file: "3"        # 보관할 로그 파일 개수 (총 30MB)
+
+services:
+  # ===================
+  # Edge Layer (API Gateway)
+  # ===================
+  gateway:
+    build:
+      context: ./api.hohyun.site
+      dockerfile: ./gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - spring-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATA_REDIS_HOST=${UPSTASH_REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${UPSTASH_REDIS_PORT}
+      - SPRING_DATA_REDIS_PASSWORD=${UPSTASH_REDIS_PASSWORD}
+      # SSL 설정은 application.yaml에서 관리 (spring.data.redis.ssl.enabled: true)
+      - SPRING_DATASOURCE_URL=${NEON_CONNECTION_STRING}
+      - SPRING_DATASOURCE_USERNAME=${NEON_USER}
+      - SPRING_DATASOURCE_PASSWORD=${NEON_PASSWORD}
+      - SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=5
+      - SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE=2
+      # JWT 설정
+      - JWT_SECRET=${JWT_SECRET}
+      # OAuth 설정
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      - NAVER_REDIRECT_URI=${NAVER_REDIRECT_URI}
+      - KAKAO_REST_API_KEY=${KAKAO_REST_API_KEY}
+      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+      - KAKAO_REDIRECT_URI=${KAKAO_REDIRECT_URI}
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=DEBUG
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_LOADBALANCER=DEBUG
+      - LOGGING_LEVEL_REACTOR_NETTY=INFO
+      # AI Service URLs (for proxying)
+      - AI_SERVICE_RAG_URL=http://rag-service:8000
+      - AI_SERVICE_DIFFUSERS_URL=http://diffusers-service:8001
+      - AI_SERVICE_YOLO_URL=http://yolo-service:8002
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    <<: *default-logging  # 로그 로테이션 적용
+
+  # ===================
+  # AI Middleware Layer (준비 - 나중에 활성화)
+  # ===================
+  # ai-middleware:
+  #   build:
+  #     context: ./ai-middleware
+  #     dockerfile: Dockerfile
+  #   container_name: ai-middleware
+  #   ports:
+  #     - "8090:8090"
+  #   depends_on:
+  #     - redis
+  #     - postgres
+  #   networks:
+  #     - spring-network
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - DB_HOST=postgres
+  #     - DB_PORT=5432
+  #     - DB_NAME=aidb
+  #     - DB_USER=aiion
+  #     - DB_PASSWORD=aiion4man
+
+  # ===================
+  # Client Layer
+  # ===================
+  # 프론트엔드는 별도 폴더(aiion.site)에서 로컬로 실행하므로 주석 처리
+  # nextjs:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=production
+  #     - NEXT_PUBLIC_API_GATEWAY_URL=http://gateway:8080
+  #     - NEXT_PUBLIC_API_BASE_URL=http://gateway:8080
+  #     - NEXT_PUBLIC_WS_URL=ws://gateway:8080/ws
+  #   restart: unless-stopped
+  #   networks:
+  #     - spring-network
+  #   depends_on:
+  #     - gateway
+
+  # ===================
+  # Observability (준비 - 나중에 활성화)
+  # ===================
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   networks:
+  #     - spring-network
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   ports:
+  #     - "3001:3000"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   networks:
+  #     - spring-network
+  #   depends_on:
+  #     - prometheus
+
+  # zipkin:
+  #   image: openzipkin/zipkin:latest
+  #   container_name: zipkin
+  #   ports:
+  #     - "9411:9411"
+  #   networks:
+  #     - spring-network
+
+  # ===================
+  # RAG Service (from ai.hohyub.site/rag)
+  # ===================
+  rag-service:
+    build:
+      context: ./ai.hohyub.site/rag
+      dockerfile: Dockerfile
+    container_name: rag-service
+    ports:
+      - "8000:8000"
+    networks:
+      - spring-network
+    environment:
+      - DATABASE_URL=${NEON_CONNECTION_STRING}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5000,http://localhost:7000,http://127.0.0.1:3000,http://127.0.0.1:5000,http://127.0.0.1:7000}
+      # S3 모델 직접 사용 설정 (EC2 볼륨 비용 절감)
+      - S3_MODEL_BUCKET=${S3_MODEL_BUCKET:-}
+      - S3_MODEL_PREFIX=${S3_MODEL_PREFIX:-models/llama/}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-northeast-2}
+    volumes:
+      # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
+      - ./ai.hohyub.site/rag/main.py:/app/main.py
+      - ./ai.hohyub.site/rag/requirements.txt:/app/requirements.txt
+      - ./ai.hohyub.site/rag/openai/app:/app/openai/app
+      - ./ai.hohyub.site/rag/llama/app:/app/llama/app
+      # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
+    restart: unless-stopped
+
+  # ===================
+  # YOLO Service (from ai.hohyub.site/yolo)
+  # ===================
+  yolo-service:
+    build:
+      context: ./ai.hohyub.site/yolo
+      dockerfile: app/Dockerfile
+    container_name: yolo-service
+    ports:
+      - "8002:8002"
+    networks:
+      - spring-network
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000}
+      # S3 모델 직접 사용 설정 (EC2 볼륨 비용 절감)
+      - S3_MODEL_BUCKET=${S3_MODEL_BUCKET:-}
+      - S3_MODEL_PREFIX=${S3_MODEL_PREFIX:-models/yolo/}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-northeast-2}
+    volumes:
+      # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
+      - ./ai.hohyub.site/yolo/app:/app
+      # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
+      # 결과 파일 저장
+      - ./ai.hohyub.site/yolo/app/save:/app/save
+    restart: unless-stopped
+
+  # ===================
+  # Diffusers Service (from ai.hohyub.site/diffusers)
+  # ===================
+  diffusers-service:
+    build:
+      context: ./ai.hohyub.site/diffusers
+      dockerfile: Dockerfile
+    container_name: diffusers-service
+    ports:
+      - "8001:8001"
+    networks:
+      - spring-network
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000}
+      - DEVICE=cuda
+      - DTYPE=float16
+      - DEFAULT_WIDTH=1024
+      - DEFAULT_HEIGHT=1024
+      - DEFAULT_STEPS=25
+      - DEFAULT_GUIDANCE=7.0
+      - MAX_WIDTH=1024
+      - MAX_HEIGHT=1024
+      - MAX_STEPS=50
+      - MAX_CONCURRENCY=1
+      - USE_REFINER=true
+      - DEFAULT_REFINER_STRENGTH=0.3
+      # S3 모델 직접 사용 설정 (EC2 볼륨 비용 절감)
+      - S3_MODEL_BUCKET=${S3_MODEL_BUCKET:-}
+      - S3_MODEL_PREFIX=${S3_MODEL_PREFIX:-models/diffusers/}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-northeast-2}
+    volumes:
+      # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
+      - ./ai.hohyub.site/diffusers/app:/app/app
+      # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
+      # 생성된 이미지 및 메타데이터 저장
+      - ./ai.hohyub.site/diffusers/app/outputs:/app/app/outputs
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+# volumes:
+  # postgres_data는 Neon 사용으로 불필요
+  # redis_data는 Upstash Redis 사용으로 불필요
+  # 모든 데이터가 클라우드(Neon, Upstash)에 저장되므로 로컬 볼륨 불필요
+    # prometheus_data:
+    # grafana_data:
+
+networks:
+  spring-network:
+    driver: bridge

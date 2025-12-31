@@ -1,0 +1,99 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: gateway-server
+  main:
+    web-application-type: servlet  # servlet 모드로 변경 (서비스 컨트롤러와 호환)
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        # PostgreSQLDialect는 자동 감지되므로 명시 불필요
+        format_sql: true
+  data:
+    redis:
+      ssl:
+        enabled: true
+  # Spring Cloud 제거 - 단순 Spring Boot 애플리케이션으로 실행
+  # 내부 서비스(oauth, user, diary)는 같은 애플리케이션 내에서 직접 컨트롤러로 실행됨
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-change-in-production}
+  access-token-expiration: 3600000  # 1시간
+  refresh-token-expiration: 2592000000  # 30일
+
+# OAuth 설정
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}
+  client-secret: ${GOOGLE_CLIENT_SECRET:}
+  redirect-uri: ${GOOGLE_REDIRECT_URI:}
+
+naver:
+  client-id: ${NAVER_CLIENT_ID:}
+  client-secret: ${NAVER_CLIENT_SECRET:}
+  redirect-uri: ${NAVER_REDIRECT_URI:}
+
+kakao:
+  client-id: ${KAKAO_REST_API_KEY:}
+  client-secret: ${KAKAO_CLIENT_SECRET:}
+  redirect-uri: ${KAKAO_REDIRECT_URI:}
+
+# AI 서비스 URL 설정
+# Docker Compose 환경: 컨테이너 이름 사용 (rag-service, diffusers-service, yolo-service)
+# EC2 단일 인스턴스: localhost 사용
+ai:
+  service:
+    rag:
+      url: ${AI_SERVICE_RAG_URL:http://rag-service:8000}
+    diffusers:
+      url: ${AI_SERVICE_DIFFUSERS_URL:http://diffusers-service:8001}
+    yolo:
+      url: ${AI_SERVICE_YOLO_URL:http://yolo-service:8002}
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    site.aiion.api: INFO
+
+# SpringDoc OpenAPI (Swagger) 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /docs
+    enabled: true
+    try-it-out-enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: false
+  use-management-port: false
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  packages-to-scan: site.aiion.api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  # Spring Cloud Gateway 제거로 gateway endpoint 불필요
+  # endpoint:
+  #   gateway:
+  #     access: unrestricted
