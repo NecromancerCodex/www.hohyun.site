@@ -4,3 +4,6 @@
 [submodule "vision.hohyun.site"]
 	path = vision.hohyun.site
 	url = https://github.com/NecromancerCodex/vision.hohyun.site.git
+[submodule "api.hohyun.site"]
+	path = api.hohyun.site
+	url = https://github.com/NecromancerCodex/api.hohyun.site.git
