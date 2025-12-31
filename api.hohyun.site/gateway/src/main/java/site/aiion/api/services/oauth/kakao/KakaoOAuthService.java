@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.kakao;
+package site.aiion.api.services.oauth.kakao;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;

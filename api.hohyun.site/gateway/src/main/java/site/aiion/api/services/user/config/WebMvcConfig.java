@@ -1,4 +1,4 @@
-package site.aiion.api.user.config;
+package site.aiion.api.services.user.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;

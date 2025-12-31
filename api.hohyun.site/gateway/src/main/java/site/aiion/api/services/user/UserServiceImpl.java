@@ -1,4 +1,4 @@
-package site.aiion.api.user;
+package site.aiion.api.services.user;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
-import site.aiion.api.user.common.domain.Messenger;
+import site.aiion.api.services.user.common.domain.Messenger;
 
 @Service
 @RequiredArgsConstructor

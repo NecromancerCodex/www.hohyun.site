@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.config;
+package site.aiion.api.services.oauth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

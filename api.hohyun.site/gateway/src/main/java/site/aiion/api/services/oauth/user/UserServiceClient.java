@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.user;
+package site.aiion.api.services.oauth.user;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;

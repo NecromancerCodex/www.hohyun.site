@@ -1,4 +1,4 @@
-package site.aiion.api.user;
+package site.aiion.api.services.user;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import site.aiion.api.user.common.domain.Messenger;
+import site.aiion.api.services.user.common.domain.Messenger;
 
 @RestController
 @RequiredArgsConstructor

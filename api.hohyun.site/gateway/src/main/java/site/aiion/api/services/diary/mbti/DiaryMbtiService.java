@@ -1,6 +1,6 @@
-package site.aiion.api.diary.mbti;
+package site.aiion.api.services.diary.mbti;
 
-import site.aiion.api.diary.common.domain.Messenger;
+import site.aiion.api.services.diary.common.domain.Messenger;
 import java.util.List;
 import java.util.Map;
 

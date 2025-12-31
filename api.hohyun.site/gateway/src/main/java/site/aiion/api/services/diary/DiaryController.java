@@ -1,4 +1,4 @@
-package site.aiion.api.diary;
+package site.aiion.api.services.diary;
 
 import java.util.List;
 
@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import site.aiion.api.diary.common.domain.Messenger;
-import site.aiion.api.diary.util.JwtTokenUtil;
+import site.aiion.api.services.diary.common.domain.Messenger;
+import site.aiion.api.services.diary.util.JwtTokenUtil;
 
 @RestController
 @RequiredArgsConstructor

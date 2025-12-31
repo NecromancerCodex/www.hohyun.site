@@ -1,4 +1,4 @@
-package site.aiion.api.diary.emotion;
+package site.aiion.api.services.diary.emotion;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
-import site.aiion.api.diary.common.domain.Messenger;
+import site.aiion.api.services.diary.common.domain.Messenger;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;

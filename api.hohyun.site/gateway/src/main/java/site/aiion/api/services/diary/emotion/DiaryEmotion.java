@@ -1,4 +1,4 @@
-package site.aiion.api.diary.emotion;
+package site.aiion.api.services.diary.emotion;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

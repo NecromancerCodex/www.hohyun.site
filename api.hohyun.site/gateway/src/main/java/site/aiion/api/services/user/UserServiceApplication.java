@@ -1,4 +1,4 @@
-package site.aiion.api.user;
+package site.aiion.api.services.user;
 
 // Spring Cloud 제거로 import 불필요
 // import org.springframework.boot.SpringApplication;

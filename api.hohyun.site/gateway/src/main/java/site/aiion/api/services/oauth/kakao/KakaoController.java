@@ -1,12 +1,12 @@
-package site.aiion.api.oauth.kakao;
+package site.aiion.api.services.oauth.kakao;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
-import site.aiion.api.oauth.token.TokenService;
-import site.aiion.api.oauth.util.JwtUtil;
-import site.aiion.api.oauth.util.JwtTokenProvider;
+import site.aiion.api.services.oauth.token.TokenService;
+import site.aiion.api.services.oauth.util.JwtUtil;
+import site.aiion.api.services.oauth.util.JwtTokenProvider;
 
 import java.net.URLEncoder;
 import java.net.URLDecoder;
@@ -23,13 +23,13 @@ public class KakaoController {
     private final TokenService tokenService;
     private final KakaoOAuthService kakaoOAuthService;
     private final JwtTokenProvider jwtTokenProvider;
-    private final site.aiion.api.user.UserService userService;
+    private final site.aiion.api.services.user.UserService userService;
     
     public KakaoController(
             TokenService tokenService,
             KakaoOAuthService kakaoOAuthService,
             JwtTokenProvider jwtTokenProvider,
-            site.aiion.api.user.UserService userService) {
+            site.aiion.api.services.user.UserService userService) {
         this.tokenService = tokenService;
         this.kakaoOAuthService = kakaoOAuthService;
         this.jwtTokenProvider = jwtTokenProvider;
@@ -39,10 +39,10 @@ public class KakaoController {
     /**
      * Messenger에서 UserModel을 추출하여 UserResponse로 변환
      */
-    private site.aiion.api.oauth.user.UserResponse extractUserFromMessenger(site.aiion.api.user.common.domain.Messenger messenger) {
+    private site.aiion.api.services.oauth.user.UserResponse extractUserFromMessenger(site.aiion.api.services.user.common.domain.Messenger messenger) {
         if (messenger.getCode() == 200 && messenger.getData() != null) {
-            site.aiion.api.user.UserModel userModel = (site.aiion.api.user.UserModel) messenger.getData();
-            return site.aiion.api.oauth.user.UserResponse.builder()
+            site.aiion.api.services.user.UserModel userModel = (site.aiion.api.services.user.UserModel) messenger.getData();
+            return site.aiion.api.services.oauth.user.UserResponse.builder()
                     .id(userModel.getId())
                     .name(userModel.getName())
                     .email(userModel.getEmail())
@@ -191,20 +191,20 @@ public class KakaoController {
                 String providerId = extractedUserInfo.get("kakao_id").toString();
                 
                 // 1단계: 사용자 조회
-                site.aiion.api.user.common.domain.Messenger findResult = userService.findByEmailAndProvider(email, "kakao");
-                site.aiion.api.oauth.user.UserResponse user = extractUserFromMessenger(findResult);
+                site.aiion.api.services.user.common.domain.Messenger findResult = userService.findByEmailAndProvider(email, "kakao");
+                site.aiion.api.services.oauth.user.UserResponse user = extractUserFromMessenger(findResult);
                 
                 // 2단계: 없으면 생성
                 if (user == null) {
                     System.out.println("[KakaoController] 사용자 없음, 새로 생성 시도: " + email);
-                    site.aiion.api.user.UserModel newUser = site.aiion.api.user.UserModel.builder()
+                    site.aiion.api.services.user.UserModel newUser = site.aiion.api.services.user.UserModel.builder()
                             .name(name)
                             .email(email)
                             .nickname(name)
                             .provider("kakao")
                             .providerId(providerId)
                             .build();
-                    site.aiion.api.user.common.domain.Messenger saveResult = userService.save(newUser);
+                    site.aiion.api.services.user.common.domain.Messenger saveResult = userService.save(newUser);
                     user = extractUserFromMessenger(saveResult);
                     
                     // 3단계: 생성 실패 시 (중복 키 등으로 이미 생성됨) 다시 조회

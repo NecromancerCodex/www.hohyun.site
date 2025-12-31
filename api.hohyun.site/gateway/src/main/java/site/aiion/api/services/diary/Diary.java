@@ -1,4 +1,4 @@
-package site.aiion.api.diary;
+package site.aiion.api.services.diary;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

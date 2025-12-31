@@ -1,4 +1,4 @@
-package site.aiion.api.diary;
+package site.aiion.api.services.diary;
 
 import java.util.List;
 import java.util.Map;
@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import site.aiion.api.diary.common.domain.Messenger;
+import site.aiion.api.services.diary.common.domain.Messenger;
 
 @Slf4j
 @Service
@@ -21,13 +21,13 @@ import site.aiion.api.diary.common.domain.Messenger;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
-    private final site.aiion.api.diary.emotion.DiaryEmotionService diaryEmotionService;
-    private final site.aiion.api.diary.mbti.DiaryMbtiService diaryMbtiService;
+    private final site.aiion.api.services.diary.emotion.DiaryEmotionService diaryEmotionService;
+    private final site.aiion.api.services.diary.mbti.DiaryMbtiService diaryMbtiService;
     private final JdbcTemplate jdbcTemplate;
 
     private DiaryModel entityToModel(Diary entity) {
         // 감정 분석 결과 조회
-        site.aiion.api.diary.common.domain.Messenger emotionResult = diaryEmotionService.findByDiaryId(entity.getId());
+        site.aiion.api.services.diary.common.domain.Messenger emotionResult = diaryEmotionService.findByDiaryId(entity.getId());
         
         DiaryModel.DiaryModelBuilder builder = DiaryModel.builder()
                 .id(entity.getId())
@@ -38,8 +38,8 @@ public class DiaryServiceImpl implements DiaryService {
         
         // 감정 분석 결과가 있으면 추가
         if (emotionResult != null && emotionResult.getCode() == 200 && emotionResult.getData() != null) {
-            site.aiion.api.diary.emotion.DiaryEmotionModel emotion = 
-                (site.aiion.api.diary.emotion.DiaryEmotionModel) emotionResult.getData();
+            site.aiion.api.services.diary.emotion.DiaryEmotionModel emotion = 
+                (site.aiion.api.services.diary.emotion.DiaryEmotionModel) emotionResult.getData();
             builder.emotion(emotion.getEmotion())
                    .emotionLabel(emotion.getEmotionLabel())
                    .emotionConfidence(emotion.getConfidence());
@@ -48,14 +48,14 @@ public class DiaryServiceImpl implements DiaryService {
         return builder.build();
     }
 
-    private DiaryModel entityToModel(Diary entity, Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap) {
+    private DiaryModel entityToModel(Diary entity, Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap) {
         return entityToModel(entity, emotionMap, Map.of());
     }
     
     private DiaryModel entityToModel(
             Diary entity, 
-            Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap,
-            Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap) {
+            Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap,
+            Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap) {
         DiaryModel.DiaryModelBuilder builder = DiaryModel.builder()
                 .id(entity.getId())
                 .diaryDate(entity.getDiaryDate())
@@ -64,7 +64,7 @@ public class DiaryServiceImpl implements DiaryService {
                 .userId(entity.getUserId());
         
         // 감정 분석 결과가 있으면 추가
-        site.aiion.api.diary.emotion.DiaryEmotionModel emotion = emotionMap.get(entity.getId());
+        site.aiion.api.services.diary.emotion.DiaryEmotionModel emotion = emotionMap.get(entity.getId());
         if (emotion != null) {
             builder.emotion(emotion.getEmotion())
                    .emotionLabel(emotion.getEmotionLabel())
@@ -73,7 +73,7 @@ public class DiaryServiceImpl implements DiaryService {
         }
         
         // MBTI 분석 결과가 있으면 추가
-        site.aiion.api.diary.mbti.DiaryMbtiModel mbti = mbtiMap.get(entity.getId());
+        site.aiion.api.services.diary.mbti.DiaryMbtiModel mbti = mbtiMap.get(entity.getId());
         if (mbti != null) {
             builder.mbtiType(mbti.getMbtiType())
                    .mbtiConfidence(mbti.getConfidence())
@@ -119,9 +119,9 @@ public class DiaryServiceImpl implements DiaryService {
             }
             // 일괄 조회 방식 사용 (N+1 문제 해결)
             List<Long> diaryIds = List.of(diary.getId());
-            Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap = 
+            Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap = 
                 diaryEmotionService.findByDiaryIdIn(diaryIds);
-            Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
+            Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
             try {
                 mbtiMap = diaryMbtiService.findByDiaryIdIn(diaryIds);
             } catch (Exception e) {
@@ -149,16 +149,16 @@ public class DiaryServiceImpl implements DiaryService {
         List<Long> diaryIds = entities.stream()
                 .map(Diary::getId)
                 .collect(Collectors.toList());
-        Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap = 
+        Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap = 
             diaryEmotionService.findByDiaryIdIn(diaryIds);
-        Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap;
+        Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap;
         try {
             mbtiMap = diaryMbtiService.findByDiaryIdIn(diaryIds);
         } catch (Exception e) {
             System.err.println("[DiaryServiceImpl] 전체 조회 시 MBTI 일괄 조회 실패: " + e.getMessage());
             mbtiMap = Map.of();
         }
-        final Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> finalMbtiMap = mbtiMap;
+        final Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> finalMbtiMap = mbtiMap;
         
         List<DiaryModel> modelList = entities.stream()
                 .map(entity -> entityToModel(entity, emotionMap, finalMbtiMap))
@@ -185,16 +185,16 @@ public class DiaryServiceImpl implements DiaryService {
                 .map(Diary::getId)
                 .collect(Collectors.toList());
         
-        Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap = 
+        Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap = 
             diaryEmotionService.findByDiaryIdIn(diaryIds);
-        Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap;
+        Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap;
         try {
             mbtiMap = diaryMbtiService.findByDiaryIdIn(diaryIds);
         } catch (Exception e) {
             System.err.println("[DiaryServiceImpl] MBTI 일괄 조회 실패: " + e.getMessage());
             mbtiMap = Map.of();
         }
-        final Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> finalMbtiMap = mbtiMap;
+        final Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> finalMbtiMap = mbtiMap;
         
         // 감정 분석 및 MBTI 분석 결과를 포함하여 모델 변환
         List<DiaryModel> modelList = entities.stream()
@@ -271,11 +271,11 @@ public class DiaryServiceImpl implements DiaryService {
 
         // 일괄 조회 방식 사용 (N+1 문제 해결)
         List<Long> diaryIds = List.of(saved.getId());
-        Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap =
+        Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap =
             diaryEmotionService.findByDiaryIdIn(diaryIds);
         
         // MBTI 조회는 예외가 발생해도 일기 저장은 성공으로 처리
-        Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
+        Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
         try {
             mbtiMap = diaryMbtiService.findByDiaryIdIn(diaryIds);
         } catch (Exception e) {
@@ -322,7 +322,7 @@ public class DiaryServiceImpl implements DiaryService {
         for (Diary diary : saved) {
             // 감정 분석
             try {
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryEmotionService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() != 200) {
                     System.err.println("[DiaryServiceImpl] 일기 ID " + diary.getId() + " 감정 분석 실패: " + result.getMessage());
@@ -333,7 +333,7 @@ public class DiaryServiceImpl implements DiaryService {
             
             // MBTI 분석
             try {
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryMbtiService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() != 200) {
                     System.err.println("[DiaryServiceImpl] 일기 ID " + diary.getId() + " MBTI 분석 실패: " + result.getMessage());
@@ -396,9 +396,9 @@ public class DiaryServiceImpl implements DiaryService {
             
             // 일괄 조회 방식 사용 (N+1 문제 해결)
             List<Long> diaryIds = List.of(saved.getId());
-            Map<Long, site.aiion.api.diary.emotion.DiaryEmotionModel> emotionMap = 
+            Map<Long, site.aiion.api.services.diary.emotion.DiaryEmotionModel> emotionMap = 
                 diaryEmotionService.findByDiaryIdIn(diaryIds);
-            Map<Long, site.aiion.api.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
+            Map<Long, site.aiion.api.services.diary.mbti.DiaryMbtiModel> mbtiMap = Map.of();
             try {
                 mbtiMap = diaryMbtiService.findByDiaryIdIn(diaryIds);
             } catch (Exception e) {
@@ -428,7 +428,7 @@ public class DiaryServiceImpl implements DiaryService {
             
             // 감정 분석 결과 삭제
             try {
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryEmotionService.deleteByDiaryId(diaryModel.getId());
                 if (result.getCode() != 200) {
                     System.err.println("[DiaryServiceImpl] 일기 ID " + diaryModel.getId() + " 감정 분석 결과 삭제 실패: " + result.getMessage());
@@ -443,7 +443,7 @@ public class DiaryServiceImpl implements DiaryService {
             
             // MBTI 분석 결과 삭제
             try {
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryMbtiService.deleteByDiaryId(diaryModel.getId());
                 if (result.getCode() != 200) {
                     System.err.println("[DiaryServiceImpl] 일기 ID " + diaryModel.getId() + " MBTI 분석 결과 삭제 실패: " + result.getMessage());
@@ -526,7 +526,7 @@ public class DiaryServiceImpl implements DiaryService {
         for (Diary diary : diaries) {
             try {
                 // 감정 분석 수행 (기존 결과가 있으면 자동으로 업데이트됨)
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryEmotionService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() == 200) {
                     successCount++;
@@ -567,7 +567,7 @@ public class DiaryServiceImpl implements DiaryService {
         for (Diary diary : allDiaries) {
             try {
                 // 감정 분석 수행 (기존 결과가 있으면 자동으로 업데이트됨)
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryEmotionService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() == 200) {
                     successCount++;
@@ -615,7 +615,7 @@ public class DiaryServiceImpl implements DiaryService {
         for (Diary diary : diaries) {
             try {
                 // MBTI 분석 수행 (기존 결과가 있으면 자동으로 업데이트됨)
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryMbtiService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() == 200) {
                     successCount++;
@@ -656,7 +656,7 @@ public class DiaryServiceImpl implements DiaryService {
         for (Diary diary : allDiaries) {
             try {
                 // MBTI 분석 수행 (기존 결과가 있으면 자동으로 업데이트됨)
-                site.aiion.api.diary.common.domain.Messenger result = 
+                site.aiion.api.services.diary.common.domain.Messenger result = 
                     diaryMbtiService.analyzeAndSave(diary.getId(), diary.getTitle(), diary.getContent());
                 if (result.getCode() == 200) {
                     successCount++;

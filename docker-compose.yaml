@@ -139,11 +139,11 @@ services:
   #     - spring-network
 
   # ===================
-  # RAG Service (from ai.hohyub.site/rag)
+  # RAG Service (from chat.hohyun.site)
   # ===================
   rag-service:
     build:
-      context: ./ai.hohyub.site/rag
+      context: ./chat.hohyun.site
       dockerfile: Dockerfile
     container_name: rag-service
     ports:
@@ -162,19 +162,19 @@ services:
       - AWS_REGION=${AWS_REGION:-ap-northeast-2}
     volumes:
       # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
-      - ./ai.hohyub.site/rag/main.py:/app/main.py
-      - ./ai.hohyub.site/rag/requirements.txt:/app/requirements.txt
-      - ./ai.hohyub.site/rag/openai/app:/app/openai/app
-      - ./ai.hohyub.site/rag/llama/app:/app/llama/app
+      - ./chat.hohyun.site/main.py:/app/main.py
+      - ./chat.hohyun.site/requirements.txt:/app/requirements.txt
+      - ./chat.hohyun.site/openai/app:/app/openai/app
+      - ./chat.hohyun.site/llama/app:/app/llama/app
       # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
     restart: unless-stopped
 
   # ===================
-  # YOLO Service (from ai.hohyub.site/yolo)
+  # YOLO Service (from vision.hohyun.site/yolo)
   # ===================
   yolo-service:
     build:
-      context: ./ai.hohyub.site/yolo
+      context: ./vision.hohyun.site/yolo
       dockerfile: app/Dockerfile
     container_name: yolo-service
     ports:
@@ -191,18 +191,18 @@ services:
       - AWS_REGION=${AWS_REGION:-ap-northeast-2}
     volumes:
       # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
-      - ./ai.hohyub.site/yolo/app:/app
+      - ./vision.hohyun.site/yolo/app:/app
       # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
       # 결과 파일 저장
-      - ./ai.hohyub.site/yolo/app/save:/app/save
+      - ./vision.hohyun.site/yolo/app/save:/app/save
     restart: unless-stopped
 
   # ===================
-  # Diffusers Service (from ai.hohyub.site/diffusers)
+  # Diffusers Service (from vision.hohyun.site/diffusers)
   # ===================
   diffusers-service:
     build:
-      context: ./ai.hohyub.site/diffusers
+      context: ./vision.hohyun.site/diffusers
       dockerfile: Dockerfile
     container_name: diffusers-service
     ports:
@@ -231,10 +231,10 @@ services:
       - AWS_REGION=${AWS_REGION:-ap-northeast-2}
     volumes:
       # 코드 파일 실시간 반영 (개발 중 코드 수정 시 즉시 반영)
-      - ./ai.hohyub.site/diffusers/app:/app/app
+      - ./vision.hohyun.site/diffusers/app:/app/app
       # 모델은 S3에서 직접 사용 (EC2 볼륨 비용 절감)
       # 생성된 이미지 및 메타데이터 저장
-      - ./ai.hohyub.site/diffusers/app/outputs:/app/app/outputs
+      - ./vision.hohyun.site/diffusers/app/outputs:/app/app/outputs
     restart: unless-stopped
     deploy:
       resources:

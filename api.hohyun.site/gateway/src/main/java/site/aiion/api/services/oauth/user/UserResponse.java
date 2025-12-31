@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.user;
+package site.aiion.api.services.oauth.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

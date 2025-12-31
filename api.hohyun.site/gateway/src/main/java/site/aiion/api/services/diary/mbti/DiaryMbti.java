@@ -1,4 +1,4 @@
-package site.aiion.api.diary.mbti;
+package site.aiion.api.services.diary.mbti;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

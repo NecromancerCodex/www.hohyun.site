@@ -1,4 +1,4 @@
-package site.aiion.api.oauth;
+package site.aiion.api.services.oauth;
 
 // Spring Cloud 제거로 import 불필요
 // import org.springframework.boot.SpringApplication;

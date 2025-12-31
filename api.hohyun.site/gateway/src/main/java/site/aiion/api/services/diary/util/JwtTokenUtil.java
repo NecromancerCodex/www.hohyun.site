@@ -1,4 +1,4 @@
-package site.aiion.api.diary.util;
+package site.aiion.api.services.diary.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

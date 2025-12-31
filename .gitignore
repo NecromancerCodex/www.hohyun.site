@@ -39,6 +39,10 @@ ai.aiion.site/business/diary_service/app/models/
 ai.aiion.site/business/diary_service/app/koelectro_v3_base/
 cv.aiion.site/app/diffusers/model/
 cv.aiion.site/app/diffusers/.hf_cache/
+# New structure: chat.hohyun.site and vision.hohyun.site
+chat.hohyun.site/llama/app/model/
+vision.hohyun.site/yolo/app/data/
+vision.hohyun.site/diffusers/app/model/
 
 # Gradle wrapper JAR
 *.jar

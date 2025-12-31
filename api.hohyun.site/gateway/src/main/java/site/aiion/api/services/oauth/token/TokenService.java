@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.token;
+package site.aiion.api.services.oauth.token;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

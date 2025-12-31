@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.naver;
+package site.aiion.api.services.oauth.naver;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;

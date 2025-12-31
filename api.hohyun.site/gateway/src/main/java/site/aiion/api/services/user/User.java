@@ -1,4 +1,4 @@
-package site.aiion.api.user;
+package site.aiion.api.services.user;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

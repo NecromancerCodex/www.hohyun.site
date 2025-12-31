@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.util;
+package site.aiion.api.services.oauth.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

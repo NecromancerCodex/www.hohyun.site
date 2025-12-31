@@ -1,4 +1,4 @@
-package site.aiion.api.diary.common.domain;
+package site.aiion.api.services.diary.common.domain;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -1,7 +1,7 @@
-package site.aiion.api.user;
+package site.aiion.api.services.user;
 
 import java.util.List;
-import site.aiion.api.user.common.domain.Messenger;
+import site.aiion.api.services.user.common.domain.Messenger;
 
 public interface UserService {
     public Messenger findById(UserModel userModel);

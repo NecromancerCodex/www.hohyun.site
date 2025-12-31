@@ -1,7 +1,7 @@
-package site.aiion.api.diary;
+package site.aiion.api.services.diary;
 
 import java.util.List;
-import site.aiion.api.diary.common.domain.Messenger;
+import site.aiion.api.services.diary.common.domain.Messenger;
 
 public interface DiaryService {
     public Messenger findById(DiaryModel diaryModel);

@@ -1,4 +1,4 @@
-package site.aiion.api.diary;
+package site.aiion.api.services.diary;
 
 import org.springframework.boot.CommandLineRunner;
 // Spring Cloud 제거로 import 불필요
@@ -13,15 +13,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 // GatewayApplication에서 통합 실행되므로 별도 실행 불필요
 // @EnableDiscoveryClient
 // @SpringBootApplication
-// @ComponentScan(basePackages = "site.aiion.api.diary")
-// @EntityScan(basePackages = {"site.aiion.api.diary", "site.aiion.api.diary.emotion"})
+// @ComponentScan(basePackages = "site.aiion.api.services.diary")
+// @EntityScan(basePackages = {"site.aiion.api.services.diary", "site.aiion.api.services.diary.emotion"})
 public class DiaryServiceApplication 
 {
 
 	// GatewayApplication에서 통합 실행되므로 main 메서드 제거
 	// public static void main(String[] args) {
 	// 	SpringApplication.run(DiaryServiceApplication.class, args);
-	// 	System.out.println("[DiaryServiceApplication] EntityScan packages: site.aiion.api.diary, site.aiion.api.diary.emotion");
+	// 	System.out.println("[DiaryServiceApplication] EntityScan packages: site.aiion.api.services.diary, site.aiion.api.services.diary.emotion");
 	// }
 
 	// CommandLineRunner는 GatewayApplication에서 @Bean으로 등록 필요

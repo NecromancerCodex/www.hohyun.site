@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.kakao;
+package site.aiion.api.services.oauth.kakao;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

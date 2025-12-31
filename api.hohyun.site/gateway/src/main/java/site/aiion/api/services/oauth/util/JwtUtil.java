@@ -1,4 +1,4 @@
-package site.aiion.api.oauth.util;
+package site.aiion.api.services.oauth.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;

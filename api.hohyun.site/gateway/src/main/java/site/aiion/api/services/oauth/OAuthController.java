@@ -1,12 +1,12 @@
-package site.aiion.api.oauth;
+package site.aiion.api.services.oauth;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import site.aiion.api.oauth.token.TokenService;
-import site.aiion.api.oauth.util.JwtTokenProvider;
+import site.aiion.api.services.oauth.token.TokenService;
+import site.aiion.api.services.oauth.util.JwtTokenProvider;
 
 import java.util.HashMap;
 import java.util.Map;

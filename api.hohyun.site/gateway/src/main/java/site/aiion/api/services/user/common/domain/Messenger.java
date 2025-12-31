@@ -1,4 +1,4 @@
-package site.aiion.api.user.common.domain;
+package site.aiion.api.services.user.common.domain;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

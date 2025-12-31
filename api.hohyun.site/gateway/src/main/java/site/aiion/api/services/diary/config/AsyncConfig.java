@@ -1,4 +1,4 @@
-package site.aiion.api.diary.config;
+package site.aiion.api.services.diary.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
