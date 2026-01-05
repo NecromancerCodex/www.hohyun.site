@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { LoginContainer } from "@/components/organisms/LoginContainer";
 import { LoginBackground } from "@/components/organisms/LoginBackground";
 import { OAuthProcessing } from "@/components/organisms/OAuthProcessing";
@@ -9,7 +9,10 @@ import { useHydration } from "@/hooks/useHydration";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
-export default function Home() {
+/**
+ * 홈 페이지 콘텐츠 (useOAuthCallback 사용)
+ */
+function HomeContent() {
   const { isAuthenticated, restoreAuthState } = useLoginStore();
   const isHydrated = useHydration();
   const isProcessingOAuth = useOAuthCallback(isHydrated, isAuthenticated);
@@ -43,5 +46,16 @@ export default function Home() {
     <LoginBackground>
       <LoginContainer />
     </LoginBackground>
+  );
+}
+
+/**
+ * 홈 페이지 (루트 페이지)
+ */
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
