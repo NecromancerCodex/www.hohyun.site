@@ -100,7 +100,7 @@ npm run dev
 프록시에 접근하면 서버 콘솔에 로그가 출력됩니다:
 
 ```
-[Proxy] Forwarding POST request to: http://api.hohyun.site:8000/rag
+[Proxy] Forwarding POST request to: http://chat.hohyun.site:8001/rag
 ```
 
 ## 문제 해결

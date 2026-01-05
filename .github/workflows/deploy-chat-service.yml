@@ -1,0 +1,182 @@
+name: Deploy Chat Service to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'chat.hohyun.site/**'
+      - '.github/workflows/deploy-chat-service.yml'
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/chat-service
+  DOCKER_TAG: latest
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./chat.hohyun.site
+          file: ./chat.hohyun.site/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Starting Chat Service Docker Deployment ==="
+
+            DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/chat-service:latest"
+            CONTAINER_NAME="chat-service"
+
+            # Docker 설치 확인
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              sudo apt-get update
+              sudo apt-get install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+            fi
+
+            # Docker Hub 로그인
+            echo "Logging in to Docker Hub..."
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin || true
+
+            # 기존 컨테이너 중지 및 제거
+            echo "Stopping existing container..."
+            docker stop $CONTAINER_NAME 2>/dev/null || true
+            docker rm $CONTAINER_NAME 2>/dev/null || true
+
+            # 최신 이미지 pull
+            echo "Pulling latest image: $DOCKER_IMAGE"
+            docker pull $DOCKER_IMAGE
+
+            # 환경 변수 파일 생성
+            echo "Creating .env file..."
+            {
+              echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
+              if [ -n "${{ secrets.FRONTEND_URL }}" ]; then
+                echo "ALLOWED_ORIGINS=${{ secrets.FRONTEND_URL }}"
+              else
+                echo "ALLOWED_ORIGINS=*"
+              fi
+              # S3 모델 설정 (IAM 역할 사용 시 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY 불필요)
+              echo "S3_MODEL_BUCKET=${{ secrets.S3_MODEL_BUCKET }}"
+              echo "S3_MODEL_PREFIX=${{ secrets.S3_MODEL_PREFIX }}"
+              echo "S3_MODEL_DIR_NAME=${{ secrets.S3_MODEL_DIR_NAME }}"
+              echo "AWS_REGION=${{ secrets.AWS_REGION }}"
+              # IAM 역할 사용 시 아래 2개는 비워두거나 설정하지 않음
+              if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+                echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
+              fi
+              if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+                echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+              fi
+              # 로컬 모델 경로 (S3 사용 시에도 캐시 디렉토리로 사용)
+              echo "LOCAL_MODEL_DIR=/app/llama/app/model/llama_ko"
+            } > ~/.env.chat-service
+
+            # Docker 컨테이너 실행
+            echo "Starting Docker container..."
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              -p 8001:8001 \
+              --env-file ~/.env.chat-service \
+              $DOCKER_IMAGE
+
+            # 컨테이너 상태 확인
+            sleep 5
+            echo "=== Container Status ==="
+            docker ps -a | grep $CONTAINER_NAME || true
+
+            echo ""
+            echo "=== Container Logs ==="
+            docker logs --tail 30 $CONTAINER_NAME || true
+
+            echo ""
+            echo "✅ Deployment Complete"
+
+      - name: Health Check
+        continue-on-error: true
+        run: |
+          echo "Waiting for service to start..."
+          sleep 30
+
+          MAX_RETRIES=10
+          RETRY_DELAY=30
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }}:8001/health 2>/dev/null || echo "000")
+
+            if [ "$response" = "200" ]; then
+              echo "✅ Service is healthy!"
+              SUCCESS=true
+              break
+            else
+              echo "⚠️  Health check returned: $response"
+              if [ $i -lt $MAX_RETRIES ]; then
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo "⚠️  Health check did not succeed"
+            echo "💡 Check manually: ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'docker logs chat-service'"
+          fi
+
+      - name: Verify Service Status
+        if: always()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "=== Container Status ==="
+            docker ps -a | grep chat-service || true
+
+            echo ""
+            echo "=== Port Check ==="
+            sudo ss -tulpn | grep :8001 || echo "Port 8001 not listening"
+
+            echo ""
+            echo "=== Container Logs ==="
+            docker logs --tail 50 chat-service || true
+
+            echo ""
+            echo "=== Local Health Check ==="
+            curl -s http://localhost:8001/health || echo "Health check failed"

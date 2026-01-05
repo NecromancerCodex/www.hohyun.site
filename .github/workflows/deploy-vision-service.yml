@@ -1,0 +1,279 @@
+name: Deploy Vision Service to EC2
+
+# 일시적으로 비활성화 (api, chat 먼저 배포)
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'vision.hohyun.site/**'
+#       - '.github/workflows/deploy-vision-service.yml'
+#   workflow_dispatch:
+
+on:
+  workflow_dispatch:  # 수동 실행만 가능
+
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/vision-service
+  DOCKER_TAG: latest
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./vision.hohyun.site
+          file: ./vision.hohyun.site/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Starting Vision Service Docker Deployment ==="
+
+            DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/vision-service:latest"
+            CONTAINER_NAME="vision-service"
+
+            # Docker 설치 확인
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              sudo apt-get update
+              sudo apt-get install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+            fi
+
+            # NVIDIA Docker 지원 확인 (GPU 사용 시)
+            if command -v nvidia-smi &> /dev/null; then
+              echo "✅ NVIDIA GPU detected"
+              if ! docker info | grep -q nvidia; then
+                echo "Installing nvidia-container-toolkit..."
+                distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+                curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+                curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+                sudo apt-get update
+                sudo apt-get install -y nvidia-container-toolkit
+                sudo systemctl restart docker
+              fi
+            fi
+
+            # Docker Hub 로그인
+            echo "Logging in to Docker Hub..."
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin || true
+
+            # 기존 컨테이너 중지 및 제거
+            echo "Stopping existing container..."
+            docker stop $CONTAINER_NAME 2>/dev/null || true
+            docker rm $CONTAINER_NAME 2>/dev/null || true
+
+            # 최신 이미지 pull
+            echo "Pulling latest image: $DOCKER_IMAGE"
+            docker pull $DOCKER_IMAGE
+
+            # 환경 변수 파일 생성
+            echo "Creating .env file..."
+            {
+              if [ -n "${{ secrets.FRONTEND_URL }}" ]; then
+                echo "ALLOWED_ORIGINS=${{ secrets.FRONTEND_URL }}"
+              else
+                echo "ALLOWED_ORIGINS=*"
+              fi
+              # Diffusers 환경 변수 (선택적, 기본값 있음)
+              if [ -n "${{ secrets.VISION_DEVICE }}" ]; then
+                echo "DEVICE=${{ secrets.VISION_DEVICE }}"
+              else
+                echo "DEVICE=cuda"
+              fi
+              if [ -n "${{ secrets.VISION_DTYPE }}" ]; then
+                echo "DTYPE=${{ secrets.VISION_DTYPE }}"
+              else
+                echo "DTYPE=float16"
+              fi
+              if [ -n "${{ secrets.VISION_DEFAULT_WIDTH }}" ]; then
+                echo "DEFAULT_WIDTH=${{ secrets.VISION_DEFAULT_WIDTH }}"
+              else
+                echo "DEFAULT_WIDTH=1024"
+              fi
+              if [ -n "${{ secrets.VISION_DEFAULT_HEIGHT }}" ]; then
+                echo "DEFAULT_HEIGHT=${{ secrets.VISION_DEFAULT_HEIGHT }}"
+              else
+                echo "DEFAULT_HEIGHT=1024"
+              fi
+              if [ -n "${{ secrets.VISION_DEFAULT_STEPS }}" ]; then
+                echo "DEFAULT_STEPS=${{ secrets.VISION_DEFAULT_STEPS }}"
+              else
+                echo "DEFAULT_STEPS=25"
+              fi
+              if [ -n "${{ secrets.VISION_DEFAULT_GUIDANCE }}" ]; then
+                echo "DEFAULT_GUIDANCE=${{ secrets.VISION_DEFAULT_GUIDANCE }}"
+              else
+                echo "DEFAULT_GUIDANCE=7.0"
+              fi
+              if [ -n "${{ secrets.VISION_MAX_WIDTH }}" ]; then
+                echo "MAX_WIDTH=${{ secrets.VISION_MAX_WIDTH }}"
+              else
+                echo "MAX_WIDTH=1024"
+              fi
+              if [ -n "${{ secrets.VISION_MAX_HEIGHT }}" ]; then
+                echo "MAX_HEIGHT=${{ secrets.VISION_MAX_HEIGHT }}"
+              else
+                echo "MAX_HEIGHT=1024"
+              fi
+              if [ -n "${{ secrets.VISION_MAX_STEPS }}" ]; then
+                echo "MAX_STEPS=${{ secrets.VISION_MAX_STEPS }}"
+              else
+                echo "MAX_STEPS=50"
+              fi
+              if [ -n "${{ secrets.VISION_MAX_CONCURRENCY }}" ]; then
+                echo "MAX_CONCURRENCY=${{ secrets.VISION_MAX_CONCURRENCY }}"
+              else
+                echo "MAX_CONCURRENCY=1"
+              fi
+              if [ -n "${{ secrets.VISION_USE_REFINER }}" ]; then
+                echo "USE_REFINER=${{ secrets.VISION_USE_REFINER }}"
+              else
+                echo "USE_REFINER=true"
+              fi
+              if [ -n "${{ secrets.VISION_DEFAULT_REFINER_STRENGTH }}" ]; then
+                echo "DEFAULT_REFINER_STRENGTH=${{ secrets.VISION_DEFAULT_REFINER_STRENGTH }}"
+              else
+                echo "DEFAULT_REFINER_STRENGTH=0.3"
+              fi
+              # S3 모델 설정 (IAM 역할 사용 시 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY 불필요)
+              echo "S3_MODEL_BUCKET=${{ secrets.S3_MODEL_BUCKET }}"
+              echo "S3_MODEL_PREFIX=${{ secrets.S3_VISION_MODEL_PREFIX }}"
+              echo "S3_MODEL_DIR_NAME=${{ secrets.S3_VISION_MODEL_DIR_NAME }}"
+              echo "AWS_REGION=${{ secrets.AWS_REGION }}"
+              # IAM 역할 사용 시 아래 2개는 비워두거나 설정하지 않음
+              if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+                echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
+              fi
+              if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+                echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+              fi
+            } > ~/.env.vision-service
+
+            # Docker 컨테이너 실행 (GPU 지원)
+            echo "Starting Docker container..."
+            if command -v nvidia-smi &> /dev/null; then
+              # GPU 사용
+              docker run -d \
+                --name $CONTAINER_NAME \
+                --restart unless-stopped \
+                --gpus all \
+                -p 8002:8002 \
+                --env-file ~/.env.vision-service \
+                $DOCKER_IMAGE
+            else
+              # CPU 사용
+              docker run -d \
+                --name $CONTAINER_NAME \
+                --restart unless-stopped \
+                -p 8002:8002 \
+                --env-file ~/.env.vision-service \
+                -e DEVICE=cpu \
+                -e DTYPE=float32 \
+                $DOCKER_IMAGE
+            fi
+
+            # 컨테이너 상태 확인
+            sleep 5
+            echo "=== Container Status ==="
+            docker ps -a | grep $CONTAINER_NAME || true
+
+            echo ""
+            echo "=== Container Logs ==="
+            docker logs --tail 30 $CONTAINER_NAME || true
+
+            echo ""
+            echo "✅ Deployment Complete"
+
+      - name: Health Check
+        continue-on-error: true
+        run: |
+          echo "Waiting for service to start..."
+          sleep 30
+
+          MAX_RETRIES=10
+          RETRY_DELAY=30
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }}:8002/health 2>/dev/null || echo "000")
+
+            if [ "$response" = "200" ]; then
+              echo "✅ Service is healthy!"
+              SUCCESS=true
+              break
+            else
+              echo "⚠️  Health check returned: $response"
+              if [ $i -lt $MAX_RETRIES ]; then
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo "⚠️  Health check did not succeed"
+            echo "💡 Check manually: ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'docker logs vision-service'"
+          fi
+
+      - name: Verify Service Status
+        if: always()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "=== Container Status ==="
+            docker ps -a | grep vision-service || true
+
+            echo ""
+            echo "=== Port Check ==="
+            sudo ss -tulpn | grep :8002 || echo "Port 8002 not listening"
+
+            echo ""
+            echo "=== Container Logs ==="
+            docker logs --tail 50 vision-service || true
+
+            echo ""
+            echo "=== Local Health Check ==="
+            curl -s http://localhost:8002/health || echo "Health check failed"
+
+            echo ""
+            echo "=== GPU Check (if available) ==="
+            if command -v nvidia-smi &> /dev/null; then
+              nvidia-smi
+            else
+              echo "No GPU detected"
+            fi

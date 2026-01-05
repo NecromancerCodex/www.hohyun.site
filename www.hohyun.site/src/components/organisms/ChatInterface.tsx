@@ -155,7 +155,7 @@ export const ChatInterface: React.FC = () => {
         const content = msg.content;
         
         // 일기 형식 1: [날짜] 일기 제목 내용
-        const diaryMatch1 = content.match(/\[.*?\]\s*일기\s+(.+?)(?:\n|$)/s);
+        const diaryMatch1 = content.match(/\[.*?\]\s*일기\s+([\s\S]+?)(?:\n|$)/);
         if (diaryMatch1) {
           const afterTitle = diaryMatch1[1];
           // 제목 다음 줄부터 내용 추출
