@@ -315,15 +315,9 @@ export default function DiariesPage() {
                 );
                 
                 if (stillNeedAnalysis.length > 0) {
-                  console.log("[DiariesPage] 새 일기 중 백엔드 분석 실패:", stillNeedAnalysis.length, "개 - 프론트엔드에서 분석");
-                  // 백엔드 분석 실패 시에만 프론트엔드에서 분석 (백그라운드 처리)
-                  const emotionPromises = stillNeedAnalysis.map(async (diary) => {
-                    await analyzeDiaryEmotion(diary, 0, false);
-                  });
-                  
-                  Promise.all(emotionPromises).catch((err) => {
-                    console.error("새 일기 감정 분석 중 오류:", err);
-                  });
+                  console.log("[DiariesPage] 새 일기 중 백엔드 분석 대기 중:", stillNeedAnalysis.length, "개 - 백엔드에서 자동으로 분석될 예정");
+                  // 프론트엔드에서 직접 감정 분석 제거 - 백엔드에서만 분석
+                  // 백엔드 분석이 완료되면 다음 새로고침 시 반영됨
                 }
               } catch (err) {
                 console.error("새 일기 상태 확인 실패:", err);
