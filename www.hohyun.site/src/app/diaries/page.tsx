@@ -245,9 +245,6 @@ export default function DiariesPage() {
         const newDiaries = diariesList.filter(d => !currentIds.has(d.id));
 
         if (newDiaries.length > 0) {
-          // 캐시 확인
-          const cache = getEmotionCache();
-          
           // 새 일기 추가 (맨 앞에 추가)
           // 백엔드에서 감정 정보를 포함해서 반환하므로 캐시 확인 불필요
           const newDiariesWithEmotion: DiaryWithEmotion[] = newDiaries.map((diary) => {
