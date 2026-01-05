@@ -27,41 +27,10 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   throw new Error("일반 로그인은 현재 지원되지 않습니다. OAuth 로그인을 사용해주세요.");
 };
 
-// 카카오 로그인 (백엔드 KakaoController와 연동)
-// request body는 optional이므로 빈 객체 또는 OAuth 코드/토큰 전달 가능
-export const kakaoLogin = async (
-  request?: { code?: string; accessToken?: string }
-): Promise<LoginResponse> => {
-  const response = await apiClient.post<LoginResponse>(
-    "/api/kakao/login",
-    request || {}
-  );
-  return response.data;
-};
-
-// 네이버 로그인 (백엔드 NaverController와 연동)
-// request body는 optional이므로 빈 객체 또는 OAuth 코드/토큰 전달 가능
-// 카카오와 동일한 패턴: /api/naver/login
-export const naverLogin = async (
-  request?: { code?: string; accessToken?: string }
-): Promise<LoginResponse> => {
-  const response = await apiClient.post<LoginResponse>(
-    "/api/naver/login",
-    request || {}
-  );
-  return response.data;
-};
-
-// 구글 로그인
-export const googleLogin = async (
-  data: SocialLoginRequest
-): Promise<LoginResponse> => {
-  const response = await apiClient.post<LoginResponse>(
-    "/api/google/login",
-    data
-  );
-  return response.data;
-};
+// 소셜 로그인 함수들은 각 OAuth 제공자별 파일에서 export됨:
+// - kakaoLogin: ./kakao.ts
+// - naverLogin: ./naver.ts
+// - googleLogin: ./google.ts
 
 // 로그아웃
 export const logout = async (): Promise<void> => {
