@@ -24,8 +24,8 @@ export const useInventoryHandler = () => {
       store.inventory.setLoading(true);
       store.inventory.setError(null);
       
-      const items = await getInventoryItems();
-      store.inventory.setItems(items);
+      const result = await getInventoryItems();
+      store.inventory.setItems(result.items);
     } catch (error) {
       console.error('재고 목록 조회 실패:', error);
       store.inventory.setError('재고 목록을 불러오는데 실패했습니다.');
