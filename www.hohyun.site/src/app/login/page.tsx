@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLoginStore } from "@/store";
 import { handleOAuthCallback, extractOAuthParams } from "@/service";
 
 /**
- * 백엔드가 /login으로 리다이렉트하는 경우를 처리
- * OAuth 콜백을 직접 처리하고 블로그로 이동
+ * OAuth 콜백 처리 컴포넌트 (useSearchParams 사용)
  */
-export default function LoginRedirectPage() {
+function LoginRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, setAuthenticated, setLoadingType } = useLoginStore();
@@ -100,6 +99,27 @@ export default function LoginRedirectPage() {
         <p className="text-gray-700">블로그로 이동 중...</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * 백엔드가 /login으로 리다이렉트하는 경우를 처리
+ * OAuth 콜백을 직접 처리하고 블로그로 이동
+ */
+export default function LoginRedirectPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-50 to-blue-50">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-pink-500 border-r-transparent"></div>
+            <p className="text-lg text-gray-700">로딩 중...</p>
+          </div>
+        </div>
+      }
+    >
+      <LoginRedirectContent />
+    </Suspense>
   );
 }
 
