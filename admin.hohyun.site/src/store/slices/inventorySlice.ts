@@ -6,13 +6,16 @@ import { StateCreator } from 'zustand';
 import { AppStore } from '../types';
 
 export interface InventoryItem {
-  id?: string;
+  id?: string | number;
   name: string;
   category: string;
   quantity: number;
   unitPrice: number;
   status?: string;
   location?: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface InventoryState {
@@ -29,7 +32,7 @@ export interface InventoryActions {
   setError: (error: string | null) => void;
   addItem: (item: InventoryItem) => void;
   updateItem: (item: InventoryItem) => void;
-  removeItem: (itemId: string) => void;
+  removeItem: (itemId: string | number) => void;
   resetInventory: () => void;
 }
 
