@@ -87,7 +87,7 @@ export const createLoginHandlers = () => {
         // 각 쿠키 삭제
         cookies.forEach(cookie => {
             const eqPos = cookie.indexOf('=');
-            const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+            const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim();
             
             // 쿠키 삭제 (과거 날짜로 설정)
             document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
