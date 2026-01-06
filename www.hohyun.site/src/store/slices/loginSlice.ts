@@ -22,9 +22,10 @@ interface LoginState {
   setLoadingType: (loadingType: LoadingType) => void;
   setAccessToken: (token: string | null) => void; // Access Token 설정
   getAccessToken: () => string | null; // Access Token 조회
+  debugAuthState: () => void; // 인증 상태 디버깅
   clearError: () => void;
   reset: () => void;
-  restoreAuthState: () => void;
+  restoreAuthState: () => Promise<void>;
   
   // 비동기 액션
   handleLogin: () => Promise<void>;
@@ -56,13 +57,29 @@ export const useLoginStore = create<LoginState>((set, get) => ({
   setRememberMe: (rememberMe: boolean) => set({ rememberMe }),
   setAuthenticated: (isAuthenticated: boolean) => set({ isAuthenticated }),
   setLoadingType: (loadingType: LoadingType) => set({ loadingType }),
-  setAccessToken: (accessToken: string | null) => set({ accessToken }),
-  getAccessToken: () => get().accessToken,
+  setAccessToken: (accessToken: string | null) => {
+    console.log("[LoginStore] setAccessToken 호출:", accessToken ? `토큰 길이 ${accessToken.length}` : "null");
+    set({ accessToken });
+  },
+  getAccessToken: () => {
+    const token = get().accessToken;
+    console.log("[LoginStore] getAccessToken 호출:", token ? `토큰 길이 ${token.length}` : "null");
+    return token;
+  },
+  debugAuthState: () => {
+    const state = get();
+    console.log("[LoginStore] 현재 인증 상태:", {
+      isAuthenticated: state.isAuthenticated,
+      loadingType: state.loadingType,
+      hasAccessToken: !!state.accessToken,
+      accessTokenLength: state.accessToken?.length || 0,
+    });
+  },
   clearError: () => set({ error: null }),
   reset: () => set(initialState),
   
   // 클라이언트에서 인증 상태 복원 (hydration 후 실행)
-  restoreAuthState: () => {
+  restoreAuthState: async () => {
     if (typeof window !== "undefined") {
       // 게스트 모드 체크
       const isGuest = sessionStorage.getItem("isGuest") === "true";
@@ -91,6 +108,32 @@ export const useLoginStore = create<LoginState>((set, get) => ({
           isAuthenticated: true, 
           loadingType: loadingTypeValue 
         });
+        
+        // Access Token이 없으면 Refresh Token으로 자동 발급
+        const currentToken = get().accessToken;
+        if (!currentToken) {
+          console.log("[LoginStore] Access Token이 없습니다. Refresh Token으로 자동 발급 시도...");
+          try {
+            const newToken = await authAPI.refreshAccessToken();
+            set({ accessToken: newToken });
+            console.log("[LoginStore] Access Token 자동 발급 성공 (길이:", newToken.length, ")");
+          } catch (error) {
+            console.error("[LoginStore] Access Token 자동 발급 실패:", error);
+            // Refresh Token도 만료된 경우 로그아웃
+            if (error instanceof Error && error.message.includes("Refresh Token이 만료")) {
+              console.warn("[LoginStore] Refresh Token 만료로 인한 로그아웃");
+              sessionStorage.removeItem("isAuthenticated");
+              sessionStorage.removeItem("loadingType");
+              set({ 
+                ...initialState,
+                isAuthenticated: false,
+                accessToken: null
+              });
+            }
+          }
+        } else {
+          console.log("[LoginStore] Access Token이 이미 메모리에 있습니다 (길이:", currentToken.length, ")");
+        }
       }
     }
   },

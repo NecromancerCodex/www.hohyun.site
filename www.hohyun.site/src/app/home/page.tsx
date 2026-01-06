@@ -9,7 +9,7 @@ import { useLoginStore } from "@/store";
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, restoreAuthState } = useLoginStore();
+  const { isAuthenticated, restoreAuthState, debugAuthState } = useLoginStore();
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -17,7 +17,13 @@ export default function HomePage() {
     setIsHydrated(true);
     // 인증 상태 복원
     restoreAuthState();
-  }, [restoreAuthState]);
+    
+    // 디버깅: 인증 상태 출력
+    setTimeout(() => {
+      console.log("[HomePage] 인증 상태 확인:");
+      debugAuthState();
+    }, 100);
+  }, [restoreAuthState, debugAuthState]);
 
   useEffect(() => {
     // hydration이 완료된 후에만 체크
