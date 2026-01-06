@@ -9,7 +9,7 @@ import { useLoginStore } from "@/store";
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, accessToken, restoreAuthState } = useLoginStore();
+  const { isAuthenticated, restoreAuthState } = useLoginStore();
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -31,15 +31,14 @@ export default function HomePage() {
       return;
     }
 
-    // 토큰이 있는지 확인 (Zustand store에서)
-    const token = accessToken;
-    
-    // 토큰이 없거나 로그인하지 않은 경우 로그인 페이지로 리다이렉트
-    if (!token || !isAuthenticated) {
+    // 인증되지 않은 경우 로그인 페이지로 리다이렉트
+    // accessToken은 페이지 로드 시 없을 수 있으므로 isAuthenticated만 체크
+    // 실제 API 호출 시 client.ts에서 자동으로 refresh token을 사용해 access token 발급
+    if (!isAuthenticated) {
       router.replace("/");
       return;
     }
-  }, [isAuthenticated, accessToken, router, isHydrated]);
+  }, [isAuthenticated, router, isHydrated]);
 
   // hydration 완료 전까지는 로딩 상태 표시
   if (!isHydrated) {

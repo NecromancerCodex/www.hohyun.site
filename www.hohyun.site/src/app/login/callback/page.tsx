@@ -11,7 +11,7 @@ import { handleOAuthCallback, extractOAuthParams, type OAuthProvider } from "@/s
 function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setAuthenticated, setLoadingType } = useLoginStore();
+  const { setAuthenticated, setLoadingType, setAccessToken } = useLoginStore();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,6 +35,11 @@ function OAuthCallbackContent() {
     // URL에서 provider 파라미터 확인 (선택적)
     const urlProvider = searchParams.get("provider") as OAuthProvider | null;
     const targetProvider = urlProvider || undefined; // undefined면 토큰에서 자동 감지
+
+    // Access Token 저장 (URL 파라미터에서)
+    if (params.token) {
+      setAccessToken(params.token);
+    }
 
     // 통합 OAuth 콜백 처리
     const result = handleOAuthCallback(params, {
