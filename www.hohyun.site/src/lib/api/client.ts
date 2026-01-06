@@ -38,10 +38,18 @@ class ApiClient {
           const token = store.getState().accessToken;
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
+            if (process.env.NODE_ENV === "development") {
+              console.log("[API Client] Authorization 헤더 추가됨 (토큰 길이:", token.length, ")");
+            }
+          } else {
+            console.warn("[API Client] ⚠️ Access Token이 없습니다. 로그인 상태를 확인하세요.");
           }
+        } else {
+          console.warn("[API Client] ⚠️ Login Store가 초기화되지 않았습니다.");
         }
       } catch (error) {
         // store가 아직 초기화되지 않은 경우 무시
+        console.warn("[API Client] ⚠️ Store 접근 중 에러:", error);
       }
     }
 
@@ -84,17 +92,26 @@ class ApiClient {
       // 이미 갱신 중이면 해당 Promise 재사용 (동시 요청 방지)
       if (this.isRefreshing && this.refreshPromise) {
         try {
-          await this.refreshPromise;
+          console.log("[API Client] 토큰 갱신 중... 기존 갱신 Promise 재사용");
+          const newToken = await this.refreshPromise;
+          
           // 원래 요청 재시도
           const retriedResponse = await retry();
           if (retriedResponse.ok) {
+            console.log("[API Client] 토큰 갱신 후 요청 성공");
             return retriedResponse as never;
           }
+          
           // 재시도도 실패하면 에러
+          console.error("[API Client] 토큰 갱신 후에도 요청 실패:", retriedResponse.status);
           throw new Error("토큰 갱신 후에도 요청이 실패했습니다.");
         } catch (error) {
           // 갱신 실패 시 로그아웃
-          if (error instanceof Error && error.message.includes("토큰 갱신 실패")) {
+          if (error instanceof Error && (
+            error.message.includes("토큰 갱신 실패") ||
+            error.message.includes("Refresh Token이 만료")
+          )) {
+            console.warn("[API Client] Refresh Token 만료로 인한 로그아웃");
             if (typeof window !== "undefined") {
               const store = (window as any).__loginStore;
               if (store) {
@@ -108,23 +125,34 @@ class ApiClient {
       
       // 새로운 갱신 시작
       if (!this.isRefreshing) {
+        console.log("[API Client] 새로운 토큰 갱신 시작");
         this.isRefreshing = true;
         
         this.refreshPromise = (async () => {
           try {
             const { refreshAccessToken } = await import("./auth");
+            console.log("[API Client] Refresh Token으로 Access Token 갱신 요청");
             const newToken = await refreshAccessToken();
+            
+            if (!newToken || newToken.trim().length === 0) {
+              throw new Error("갱신된 토큰이 비어있습니다.");
+            }
             
             // 메모리에 새 토큰 저장
             if (typeof window !== "undefined") {
               const store = (window as any).__loginStore;
               if (store) {
                 store.getState().setAccessToken(newToken);
+                console.log("[API Client] 새 Access Token 저장 완료 (길이:", newToken.length, ")");
+              } else {
+                console.error("[API Client] ⚠️ Login Store를 찾을 수 없습니다.");
               }
             }
             
             return newToken;
           } catch (error) {
+            console.error("[API Client] 토큰 갱신 실패:", error);
+            
             // 갱신 실패 시 상태 정리
             this.isRefreshing = false;
             this.refreshPromise = null;
@@ -133,32 +161,45 @@ class ApiClient {
             if (typeof window !== "undefined") {
               const store = (window as any).__loginStore;
               if (store) {
+                console.warn("[API Client] Refresh Token 만료로 인한 로그아웃");
                 store.getState().logout();
               }
             }
             
-            throw new Error("토큰 갱신 실패: " + (error instanceof Error ? error.message : "알 수 없는 오류"));
+            const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+            throw new Error("토큰 갱신 실패: " + errorMessage);
           }
         })();
       }
       
       try {
-        await this.refreshPromise;
+        const newToken = await this.refreshPromise;
         
-        // 갱신 성공 후 상태 정리
-        this.isRefreshing = false;
-        this.refreshPromise = null;
+        // 갱신 성공 후 상태 정리 (다음 갱신을 위해)
+        // 주의: isRefreshing은 refreshPromise 내부에서만 false로 설정
+        // 여기서는 refreshPromise를 null로만 설정하여 다음 갱신을 허용
         
         // 원래 요청 재시도
+        console.log("[API Client] 토큰 갱신 성공, 원래 요청 재시도");
         const retriedResponse = await retry();
         if (retriedResponse.ok) {
+          console.log("[API Client] 토큰 갱신 후 요청 성공");
+          // 성공 후에만 상태 정리
+          this.isRefreshing = false;
+          this.refreshPromise = null;
           return retriedResponse as never;
         }
         
         // 재시도도 실패하면 에러
+        console.error("[API Client] 토큰 갱신 후에도 요청 실패:", retriedResponse.status);
+        this.isRefreshing = false;
+        this.refreshPromise = null;
         throw new Error("토큰 갱신 후에도 요청이 실패했습니다.");
       } catch (refreshError) {
         // 에러는 이미 refreshPromise 내부에서 처리됨
+        // 하지만 여기서도 상태 정리
+        this.isRefreshing = false;
+        this.refreshPromise = null;
         throw refreshError;
       }
     }

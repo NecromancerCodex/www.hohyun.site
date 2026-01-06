@@ -41,17 +41,39 @@ export const logout = async (): Promise<void> => {
 // Access Token 갱신 (Refresh Token은 HttpOnly 쿠키로 자동 전송)
 export const refreshAccessToken = async (): Promise<string> => {
   try {
+    console.log("[Auth] Access Token 갱신 요청 시작");
     const { data } = await apiClient.post<{ access_token: string }>("/api/auth/refresh");
-    if (!data?.access_token) {
+    
+    if (!data) {
+      console.error("[Auth] 토큰 갱신 응답이 비어있습니다.");
+      throw new Error("토큰 갱신 응답이 비어있습니다.");
+    }
+    
+    if (!data.access_token) {
+      console.error("[Auth] 토큰 갱신 응답에 access_token이 없습니다:", data);
       throw new Error("토큰 갱신 응답에 access_token이 없습니다.");
     }
+    
+    if (data.access_token.trim().length === 0) {
+      console.error("[Auth] 토큰 갱신 응답의 access_token이 비어있습니다.");
+      throw new Error("토큰 갱신 응답의 access_token이 비어있습니다.");
+    }
+    
+    console.log("[Auth] Access Token 갱신 성공 (길이:", data.access_token.length, ")");
     return data.access_token;
   } catch (error: any) {
+    console.error("[Auth] Access Token 갱신 실패:", error);
+    
     // 네트워크 에러나 401 에러는 Refresh Token 만료를 의미
     if (error.response?.status === 401 || error.code === "ECONNREFUSED") {
-      throw new Error("Refresh Token이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.");
+      const errorMsg = "Refresh Token이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.";
+      console.warn("[Auth]", errorMsg);
+      throw new Error(errorMsg);
     }
-    throw error;
+    
+    // 기타 에러는 그대로 전달
+    const errorMessage = error.message || "토큰 갱신 중 알 수 없는 오류가 발생했습니다.";
+    throw new Error(errorMessage);
   }
 };
 

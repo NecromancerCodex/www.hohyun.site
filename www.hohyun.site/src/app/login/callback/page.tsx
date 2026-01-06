@@ -38,7 +38,11 @@ function OAuthCallbackContent() {
 
     // Access Token 저장 (URL 파라미터에서)
     if (params.token) {
+      console.log("[OAuth Callback] Access Token 설정 중... (토큰 길이:", params.token.length, ")");
       setAccessToken(params.token);
+      console.log("[OAuth Callback] Access Token 설정 완료");
+    } else {
+      console.warn("[OAuth Callback] ⚠️ Access Token이 URL 파라미터에 없습니다.");
     }
 
     // 통합 OAuth 콜백 처리
