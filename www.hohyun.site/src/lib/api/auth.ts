@@ -32,55 +32,23 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
 // - naverLogin: ./naver.ts
 // - googleLogin: ./google.ts
 
-// 로그아웃
+// 로그아웃 - Refresh Token 쿠키는 백엔드가 제거
 export const logout = async (): Promise<void> => {
   await apiClient.post("/api/oauth/logout");
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refresh_token");
-  }
+  // Access Token은 메모리(Zustand store)에서 관리되므로 여기서는 제거하지 않음
 };
 
-// 토큰 저장
-export const saveToken = (token: string): void => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("token", token);
-  }
+// Access Token 갱신 (Refresh Token은 HttpOnly 쿠키로 자동 전송)
+export const refreshAccessToken = async (): Promise<string> => {
+  const { data } = await apiClient.post<{ access_token: string }>("/api/auth/refresh");
+  return data.access_token;
 };
 
-// 토큰 저장 (Access Token과 Refresh Token)
-export const saveTokens = (accessToken: string, refreshToken?: string): void => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("token", accessToken);
-    if (refreshToken) {
-      localStorage.setItem("refresh_token", refreshToken);
-    }
-  }
-};
-
-// 토큰 가져오기
-export const getToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("token");
-  }
-  return null;
-};
-
-// Refresh Token 가져오기
-export const getRefreshToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("refresh_token");
-  }
-  return null;
-};
-
-// JWT 토큰에서 사용자 ID 추출
-export const getUserIdFromToken = (): string | null => {
-  if (typeof window === "undefined") return null;
+// JWT 토큰에서 사용자 ID 추출 (메모리에서 토큰 가져와야 함)
+export const getUserIdFromToken = (token?: string): string | null => {
+  if (!token) return null;
   
   try {
-    const token = getToken();
-    if (!token) return null;
     
     // JWT 토큰은 .으로 구분된 3부분으로 구성: header.payload.signature
     const parts = token.split(".");

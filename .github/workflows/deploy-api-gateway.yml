@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway
-  DOCKER_TAG: latest
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/api.hohyun.com
+  DOCKER_TAG: v1
 
 jobs:
   build-and-push:
@@ -54,7 +54,7 @@ jobs:
 
             echo "=== Starting API Gateway Docker Deployment ==="
 
-            DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest"
+            DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/api.hohyun.com:v1"
             CONTAINER_NAME="api-gateway"
 
             # Docker 설치 확인

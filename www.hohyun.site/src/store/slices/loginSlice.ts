@@ -12,6 +12,7 @@ interface LoginState {
   isLoading: boolean;
   loadingType: LoadingType;
   error: string | null;
+  accessToken: string | null; // Access Token은 메모리(store)에만 저장
   
   // 동기 액션
   setUsername: (username: string) => void;
@@ -19,6 +20,8 @@ interface LoginState {
   setRememberMe: (rememberMe: boolean) => void;
   setAuthenticated: (isAuthenticated: boolean) => void;
   setLoadingType: (loadingType: LoadingType) => void;
+  setAccessToken: (token: string | null) => void; // Access Token 설정
+  getAccessToken: () => string | null; // Access Token 조회
   clearError: () => void;
   reset: () => void;
   restoreAuthState: () => void;
@@ -41,6 +44,7 @@ const initialState = {
   isLoading: false,
   loadingType: null as LoadingType, // 항상 null로 시작 (클라이언트에서 복원)
   error: null,
+  accessToken: null as string | null, // Access Token은 메모리에만 저장
 };
 
 export const useLoginStore = create<LoginState>((set, get) => ({
@@ -52,6 +56,8 @@ export const useLoginStore = create<LoginState>((set, get) => ({
   setRememberMe: (rememberMe: boolean) => set({ rememberMe }),
   setAuthenticated: (isAuthenticated: boolean) => set({ isAuthenticated }),
   setLoadingType: (loadingType: LoadingType) => set({ loadingType }),
+  setAccessToken: (accessToken: string | null) => set({ accessToken }),
+  getAccessToken: () => get().accessToken,
   clearError: () => set({ error: null }),
   reset: () => set(initialState),
   
@@ -69,13 +75,12 @@ export const useLoginStore = create<LoginState>((set, get) => ({
         return;
       }
       
-      // localStorage에 토큰이 있으면 로그인 상태로 복원
-      const token = localStorage.getItem("token");
-      const storedLoadingType = sessionStorage.getItem("loadingType");
+      // sessionStorage의 인증 상태만 확인 (토큰은 메모리 또는 쿠키에 있음)
       const stored = sessionStorage.getItem("isAuthenticated");
+      const storedLoadingType = sessionStorage.getItem("loadingType");
       
-      // 토큰이 있거나 sessionStorage에 로그인 상태가 있으면 복원
-      if (token || stored === "true") {
+      // sessionStorage에 로그인 상태가 있으면 복원
+      if (stored === "true") {
         const loadingTypeValue = storedLoadingType && 
           (storedLoadingType === "login" || storedLoadingType === "google" || 
            storedLoadingType === "kakao" || storedLoadingType === "naver") 
@@ -106,9 +111,9 @@ export const useLoginStore = create<LoginState>((set, get) => ({
         password: state.password,
       });
       
-      // 토큰 저장
+      // Access Token을 메모리에만 저장 (Refresh Token은 서버가 HttpOnly 쿠키로 설정)
       if (response.token) {
-        authAPI.saveToken(response.token);
+        set({ accessToken: response.token });
       }
       
       // 로그인 성공 - 상태 업데이트
@@ -195,10 +200,9 @@ export const useLoginStore = create<LoginState>((set, get) => ({
           const { token, refresh_token, provider } = event.data;
           
           try {
-            // JWT 토큰 저장
+            // Access Token을 메모리에만 저장 (Refresh Token은 HttpOnly 쿠키로 관리됨)
             if (token) {
-              const { saveTokens } = await import("@/lib/api/auth");
-              saveTokens(token, refresh_token);
+              set({ accessToken: token });
             }
             
             // 로그인 상태 업데이트
@@ -365,10 +369,9 @@ export const useLoginStore = create<LoginState>((set, get) => ({
           const { token, refresh_token, provider } = event.data;
           
           try {
-            // JWT 토큰 저장
+            // Access Token을 메모리에만 저장 (Refresh Token은 HttpOnly 쿠키로 관리됨)
             if (token) {
-              const { saveTokens } = await import("@/lib/api/auth");
-              saveTokens(token, refresh_token);
+              set({ accessToken: token });
             }
             
             // 로그인 상태 업데이트
@@ -535,10 +538,9 @@ export const useLoginStore = create<LoginState>((set, get) => ({
           const { token, refresh_token, provider } = event.data;
           
           try {
-            // JWT 토큰 저장
+            // Access Token을 메모리에만 저장 (Refresh Token은 HttpOnly 쿠키로 관리됨)
             if (token) {
-              const { saveTokens } = await import("@/lib/api/auth");
-              saveTokens(token, refresh_token);
+              set({ accessToken: token });
             }
             
             // 로그인 상태 업데이트
@@ -682,23 +684,20 @@ export const useLoginStore = create<LoginState>((set, get) => ({
       // 백엔드에 로그아웃 요청
       await authAPI.logout();
       
-      // 로그아웃 성공 - 상태 초기화
+      // 로그아웃 성공 - 상태 초기화 (메모리의 Access Token 제거)
       set({ 
         ...initialState,
         isAuthenticated: false,
         isLoading: false,
-        loadingType: null 
+        loadingType: null,
+        accessToken: null 
       });
       
-      // 모든 저장소에서 인증 정보 제거
+      // sessionStorage에서 로그인 상태 제거 (Refresh Token은 백엔드가 쿠키 제거)
       if (typeof window !== "undefined") {
-        // localStorage에서 토큰 제거
-        localStorage.removeItem("token");
-        localStorage.removeItem("refresh_token");
-        // sessionStorage에서 로그인 상태 제거
         sessionStorage.removeItem("isAuthenticated");
         sessionStorage.removeItem("loadingType");
-        sessionStorage.removeItem("isGuest"); // 게스트 모드 제거
+        sessionStorage.removeItem("isGuest");
       }
       
       // 로그인 페이지로 이동
@@ -713,16 +712,15 @@ export const useLoginStore = create<LoginState>((set, get) => ({
         ...initialState,
         isAuthenticated: false,
         isLoading: false,
-        loadingType: null 
+        loadingType: null,
+        accessToken: null 
       });
       
-      // 모든 저장소에서 인증 정보 제거
+      // sessionStorage에서 로그인 상태 제거
       if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("refresh_token");
         sessionStorage.removeItem("isAuthenticated");
         sessionStorage.removeItem("loadingType");
-        sessionStorage.removeItem("isGuest"); // 게스트 모드 제거
+        sessionStorage.removeItem("isGuest");
       }
       
       // 로그인 페이지로 이동

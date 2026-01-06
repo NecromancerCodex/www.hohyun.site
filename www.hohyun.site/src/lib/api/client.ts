@@ -22,18 +22,26 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
-  // 기본 헤더 생성
+  // 기본 헤더 생성 (Access Token은 메모리에서 가져옴)
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       "Accept": "application/json",
     };
 
-    // 토큰이 있다면 헤더에 추가
+    // Access Token은 Zustand store에서 가져옴
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      try {
+        // 동적 import를 피하기 위해 window 객체에 저장된 토큰 접근
+        const store = (window as any).__loginStore;
+        if (store) {
+          const token = store.getState().accessToken;
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+        }
+      } catch (error) {
+        // store가 아직 초기화되지 않은 경우 무시
       }
     }
 
@@ -65,16 +73,62 @@ class ApiClient {
     }
   }
 
+  // 토큰 갱신 플래그 (무한 루프 방지)
+  private isRefreshing = false;
+  private refreshPromise: Promise<string> | null = null;
+
   // 에러 처리
-  private async handleErrorResponse(response: Response, requestedUrl?: string): Promise<never> {
-    // 401 Unauthorized - 토큰 만료 시 로그아웃
-    // 테스트 중: 자동 로그아웃 비활성화
-    // if (response.status === 401) {
-    //   if (typeof window !== "undefined") {
-    //     localStorage.removeItem("token");
-    //     window.location.href = "/";
-    //   }
-    // }
+  private async handleErrorResponse(response: Response, requestedUrl?: string, retry?: () => Promise<Response>): Promise<never> {
+    // 401 Unauthorized - Access Token 만료, Refresh Token으로 재발급 시도
+    if (response.status === 401 && retry && !this.isRefreshing && !requestedUrl?.includes("/auth/refresh")) {
+      try {
+        this.isRefreshing = true;
+        
+        // 이미 갱신 중이면 해당 Promise 재사용
+        if (!this.refreshPromise) {
+          this.refreshPromise = (async () => {
+            const { refreshAccessToken } = await import("./auth");
+            const newToken = await refreshAccessToken();
+            
+            // 메모리에 새 토큰 저장
+            if (typeof window !== "undefined") {
+              const store = (window as any).__loginStore;
+              if (store) {
+                store.getState().setAccessToken(newToken);
+              }
+            }
+            
+            return newToken;
+          })();
+        }
+        
+        await this.refreshPromise;
+        this.refreshPromise = null;
+        this.isRefreshing = false;
+        
+        // 원래 요청 재시도
+        const retriedResponse = await retry();
+        if (retriedResponse.ok) {
+          return retriedResponse as never;
+        }
+        
+        // 재시도도 실패하면 로그아웃
+        throw new Error("토큰 갱신 후에도 요청이 실패했습니다.");
+      } catch (refreshError) {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+        
+        // Refresh Token도 만료된 경우 로그아웃
+        if (typeof window !== "undefined") {
+          const store = (window as any).__loginStore;
+          if (store) {
+            store.getState().logout();
+          }
+        }
+        
+        throw refreshError;
+      }
+    }
 
     // 404 Not Found - 엔드포인트를 찾을 수 없음
     if (response.status === 404) {
@@ -119,21 +173,25 @@ class ApiClient {
 
   // GET 요청
   async get<T = any>(endpoint: string, options: RequestOptions = {}): Promise<{ data: T }> {
-    try {
+    const makeRequest = async (): Promise<Response> => {
       const url = `${this.baseURL}${endpoint}`;
-      const response = await this.fetchWithTimeout(
+      return await this.fetchWithTimeout(
         url,
         {
           method: "GET",
           headers: this.getHeaders(),
-          credentials: "include", // 쿠키 포함 (Spring Gateway 세션 관리용)
+          credentials: "include", // Refresh Token 쿠키 포함
           ...options,
         },
         options.timeout || 10000
       );
+    };
+
+    try {
+      const response = await makeRequest();
 
       if (!response.ok) {
-        await this.handleErrorResponse(response);
+        await this.handleErrorResponse(response, `${this.baseURL}${endpoint}`, makeRequest);
       }
 
       const contentType = response.headers.get("content-type");
@@ -164,23 +222,27 @@ class ApiClient {
     body?: any,
     options: RequestOptions = {}
   ): Promise<{ data: T }> {
-    try {
+    const makeRequest = async (): Promise<Response> => {
       const url = `${this.baseURL}${endpoint}`;
       console.log(`[API Client] POST Request: ${url}`, { body, baseURL: this.baseURL, endpoint });
-      const response = await this.fetchWithTimeout(
+      return await this.fetchWithTimeout(
         url,
         {
           method: "POST",
           headers: this.getHeaders(),
-          credentials: "include", // 쿠키 포함
+          credentials: "include", // Refresh Token 쿠키 포함
           body: body ? JSON.stringify(body) : undefined,
           ...options,
         },
         options.timeout || 20000 // 기본 타임아웃 20초
       );
+    };
+
+    try {
+      const response = await makeRequest();
 
       if (!response.ok) {
-        await this.handleErrorResponse(response, url);
+        await this.handleErrorResponse(response, `${this.baseURL}${endpoint}`, makeRequest);
       }
 
       // 응답이 비어있을 수 있음

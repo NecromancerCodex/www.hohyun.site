@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { useLoginStore } from "@/store/slices/loginSlice";
 import { useSearchStore } from "@/store/slices/searchSlice";
 
@@ -15,10 +15,16 @@ interface StoreProviderProps {
  * 실제로는 Zustand hooks를 직접 사용하면 됩니다.
  */
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
-  // Zustand stores 초기화 (필요시)
-  // 실제로는 hooks를 직접 사용하면 되지만, 의존성 주입 패턴을 위해 유지
+  // Zustand stores 초기화
   useLoginStore.getState();
   useSearchStore.getState();
+
+  // API Client가 접근할 수 있도록 window 객체에 loginStore 노출
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__loginStore = useLoginStore;
+    }
+  }, []);
 
   return <>{children}</>;
 };
