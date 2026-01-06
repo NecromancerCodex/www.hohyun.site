@@ -79,14 +79,10 @@ export default function CharacterHistoryPage() {
         const allDiaries = await getPublicDiariesByUserId(foundFigure.userId);
         
         // title에 인물 키워드가 포함된 일기만 필터링
-        // isDefault가 true이면 필터링 없이 모든 일기 반환
-        const filteredDiaries = foundFigure.isDefault
-          ? allDiaries
-          : allDiaries.filter((diary) => {
-              const title = diary.title || "";
-              const keyword = foundFigure.titleKeyword || "";
-              return keyword ? title.includes(keyword) : true;
-            });
+        const filteredDiaries = allDiaries.filter((diary) => {
+          const title = diary.title || "";
+          return title.includes(foundFigure.titleKeyword || "");
+        });
         
         console.log(`[CharacterHistoryPage] ${foundFigure.name} 일기 목록 로드:`, filteredDiaries.length, `개 (전체: ${allDiaries.length}개)`);
 

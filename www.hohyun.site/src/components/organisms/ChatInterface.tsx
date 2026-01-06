@@ -78,7 +78,7 @@ export const ChatInterface: React.FC = () => {
 
   // 사용자 ID 가져오기 (accessToken에서 추출)
   const userId = getUserIdFromToken(accessToken || undefined);
-  const isOwner = userId === "1" || userId === 1; // userId 1만 편집 권한
+  const isOwner = userId === "1"; // userId 1만 편집 권한 (string 비교)
   
   // 모델 선택을 localStorage에 저장
   useEffect(() => {
@@ -178,12 +178,10 @@ export const ChatInterface: React.FC = () => {
     setIsEditingAbout(false);
   };
 
-  // 자기소개글 로드
+  // 자기소개글 로드 (게스트 포함 모두 조회 가능)
   useEffect(() => {
-    if (isAuthenticated && userId) {
-      loadAbout();
-    }
-  }, [isAuthenticated, userId]);
+    loadAbout(); // 인증 여부와 관계없이 항상 로드
+  }, []); // 빈 의존성 배열: 컴포넌트 마운트 시 1회만 실행
 
   // 서버 상태 확인
   useEffect(() => {
@@ -713,23 +711,23 @@ export const ChatInterface: React.FC = () => {
           </form>
             </div>
           </div>
+        </div>
 
-        {/* Right: 자기소개 영역 (청록색) */}
-        {isAuthenticated && (
-          <aside className="flex-1 min-w-[400px] bg-teal-50 border-l border-teal-200 flex flex-col sticky top-0 h-screen overflow-y-auto">
-            <div className="p-6 border-b border-teal-300 bg-teal-100">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-teal-900">자기소개</h2>
-                {!isEditingAbout && isOwner && (
-                  <button
-                    onClick={() => setIsEditingAbout(true)}
-                    className="px-5 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    {about ? "수정" : "작성"}
-                  </button>
-                )}
-              </div>
+        {/* Right: 자기소개 영역 (청록색) - 게스트 포함 모두 조회 가능 */}
+        <aside className="flex-1 min-w-[400px] bg-teal-50 border-l border-teal-200 flex flex-col sticky top-0 h-screen overflow-y-auto">
+          <div className="p-6 border-b border-teal-300 bg-teal-100">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-teal-900">자기소개</h2>
+              {!isEditingAbout && isAuthenticated && isOwner && (
+                <button
+                  onClick={() => setIsEditingAbout(true)}
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+                >
+                  {about ? "수정" : "작성"}
+                </button>
+              )}
             </div>
+          </div>
 
             <div className="flex-1 p-6">
               {isEditingAbout && isOwner ? (
@@ -779,8 +777,7 @@ export const ChatInterface: React.FC = () => {
                 </div>
               )}
             </div>
-          </aside>
-        )}
+        </aside>
       </div>
     </div>
   );
