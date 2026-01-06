@@ -5,7 +5,7 @@
  * ⚠️ 클라이언트 전용: 이 파일은 클라이언트 컴포넌트에서만 사용해야 합니다.
  */
 
-import { saveTokens } from "@/lib/api/auth";
+import { useLoginStore } from "@/store";
 
 export type OAuthProvider = "google" | "kakao" | "naver";
 
@@ -194,8 +194,9 @@ export const OAuthBaseHandler = (() => {
           return { success: true, provider };
         }
 
-        // 일반 탭인 경우: 토큰 저장 및 상태 업데이트
-        saveTokens(token, refreshToken || undefined);
+        // 일반 탭인 경우: Access Token을 메모리에 저장
+        // Refresh Token은 이미 HttpOnly 쿠키로 저장되어 있음
+        useLoginStore.getState().setAccessToken(token);
         callbacks.onSuccess(provider);
 
         // 리다이렉트

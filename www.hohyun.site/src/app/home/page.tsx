@@ -6,17 +6,16 @@ import Link from "next/link";
 import { ChatInterface } from "@/components/organisms/ChatInterface";
 import { Button } from "@/components/atoms/Button";
 import { useLoginStore } from "@/store";
-import { getToken } from "@/lib/api/auth";
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, restoreAuthState } = useLoginStore();
+  const { isAuthenticated, accessToken, restoreAuthState } = useLoginStore();
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // 클라이언트에서만 실행 (hydration 후)
     setIsHydrated(true);
-    // 인증 상태 복원 (localStorage 토큰 확인 포함)
+    // 인증 상태 복원
     restoreAuthState();
   }, [restoreAuthState]);
 
@@ -32,15 +31,15 @@ export default function HomePage() {
       return;
     }
 
-    // 토큰이 있는지 확인
-    const token = getToken();
+    // 토큰이 있는지 확인 (Zustand store에서)
+    const token = accessToken;
     
     // 토큰이 없거나 로그인하지 않은 경우 로그인 페이지로 리다이렉트
     if (!token || !isAuthenticated) {
       router.replace("/");
       return;
     }
-  }, [isAuthenticated, router, isHydrated]);
+  }, [isAuthenticated, accessToken, router, isHydrated]);
 
   // hydration 완료 전까지는 로딩 상태 표시
   if (!isHydrated) {
