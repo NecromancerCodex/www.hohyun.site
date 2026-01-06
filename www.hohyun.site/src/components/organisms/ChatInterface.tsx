@@ -537,7 +537,7 @@ export const ChatInterface: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex min-w-0">
+      <div className="flex-1 flex min-w-0 gap-4">
         {/* Left: Chat Area */}
         <div className="flex-1 flex flex-col min-w-0 max-w-4xl">
           {/* Header */}
@@ -713,38 +713,41 @@ export const ChatInterface: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: 자기소개 영역 (청록색) - 게스트 포함 모두 조회 가능 */}
-        <aside className="flex-1 min-w-[400px] bg-teal-50 border-l border-teal-200 flex flex-col sticky top-0 h-screen overflow-y-auto">
-          <div className="p-6 border-b border-teal-300 bg-teal-100">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-teal-900">자기소개</h2>
-              {!isEditingAbout && isAuthenticated && isOwner && (
-                <button
-                  onClick={() => setIsEditingAbout(true)}
-                  className="px-5 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all shadow-md hover:shadow-lg"
-                >
-                  {about ? "수정" : "작성"}
-                </button>
-              )}
+        {/* Right: 자기소개 영역 */}
+        {isAuthenticated && (
+          <aside className="w-[750px] min-w-[700px] mr-4 my-4 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border border-purple-200 rounded-2xl flex flex-col sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto shadow-lg">
+            <div className="p-5 border-b border-purple-200 bg-white/60 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  자기소개
+                </h2>
+                {!isEditingAbout && (
+                  <button
+                    onClick={() => setIsEditingAbout(true)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    {about ? "수정" : "작성"}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-            <div className="flex-1 p-6">
-              {isEditingAbout && isOwner ? (
+            <div className="flex-1 p-5">
+              {isEditingAbout ? (
                 <div className="space-y-4">
                   <textarea
                     value={aboutContent}
                     onChange={(e) => setAboutContent(e.target.value)}
                     placeholder="자기소개를 입력하세요..."
-                    className="w-full px-4 py-3 text-base border-2 border-teal-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none bg-white shadow-sm"
-                    rows={20}
+                    className="w-full px-4 py-3 text-base border-2 border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-none bg-white shadow-sm"
+                    style={{ minHeight: '675px' }}
                     disabled={isLoadingAbout}
                   />
                   <div className="flex gap-3">
                     <button
                       onClick={handleSaveAbout}
                       disabled={isLoadingAbout}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
                     >
                       {isLoadingAbout ? "저장 중..." : "저장"}
                     </button>
@@ -758,26 +761,27 @@ export const ChatInterface: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-base text-teal-900 whitespace-pre-wrap break-words leading-relaxed">
+                <div className="text-base text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
                   {isLoadingAbout ? (
                     <div className="flex items-center justify-center py-32">
-                      <div className="text-teal-400 text-lg">로딩 중...</div>
+                      <div className="text-purple-400 text-lg">로딩 중...</div>
                     </div>
                   ) : about ? (
                     about.content || (
-                      <div className="text-teal-400 italic text-center py-32 text-lg">
+                      <div className="text-purple-400 italic text-center py-32 text-lg">
                         자기소개가 없습니다.
                       </div>
                     )
                   ) : (
-                    <div className="text-teal-400 italic text-center py-32 text-lg">
+                    <div className="text-purple-400 italic text-center py-32 text-lg">
                       자기소개를 작성해보세요.
                     </div>
                   )}
                 </div>
               )}
             </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
