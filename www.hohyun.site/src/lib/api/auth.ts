@@ -34,7 +34,7 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
 
 // 로그아웃 - Refresh Token 쿠키는 백엔드가 제거
 export const logout = async (): Promise<void> => {
-  await apiClient.post("/api/oauth/logout");
+  await apiClient.post("/api/auth/logout");
   // Access Token은 메모리(Zustand store)에서 관리되므로 여기서는 제거하지 않음
 };
 
