@@ -59,7 +59,7 @@ export async function getUserDiaries(userId?: string): Promise<Diary[]> {
 /**
  * 단일 일기 조회 (일괄 조회 방식 사용, N+1 문제 해결)
  */
-export async function getDiaryById(diaryId: number, userId: number): Promise<Diary> {
+export async function getDiaryById(diaryId: number, userId?: number): Promise<Diary> {
   try {
     const response = await apiClient.post<{ code: number; message: string; data: Diary }>(
       `/api/diaries/findById`,
@@ -72,6 +72,25 @@ export async function getDiaryById(diaryId: number, userId: number): Promise<Dia
     throw new Error(response.data.message || "일기를 가져올 수 없습니다.");
   } catch (error: any) {
     console.error("[Diary API] 일기 조회 실패:", error);
+    throw error;
+  }
+}
+
+/**
+ * 특정 사용자의 일기 목록 조회 (공개)
+ * 인증 없이 조회 가능합니다.
+ */
+export async function getPublicDiariesByUserId(userId: number): Promise<Diary[]> {
+  try {
+    const response = await apiClient.get<MessengerResponse>(`/api/diaries/user/${userId}`);
+    // Messenger 형식: { code, message, data }
+    if (response.data.code === 200 && response.data.data) {
+      const data = response.data.data;
+      return Array.isArray(data) ? data : [data];
+    }
+    throw new Error(response.data.message || "일기 목록을 가져올 수 없습니다.");
+  } catch (error: any) {
+    console.error("[Diary API] 공개 일기 조회 실패:", error);
     throw error;
   }
 }

@@ -4,8 +4,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { sendChatMessage, ChatMessage, checkChatServerHealth } from "@/lib/api/chat";
 import { useLoginStore } from "@/store";
 import { getUserIdFromToken } from "@/lib/api/auth";
-import { TitanicPassengers } from "./TitanicPassengers";
 import { useRouter } from "next/navigation";
+import { getAbout, saveAbout, updateAbout, About } from "@/lib/api/about";
 // 직접 감정 분석 호출 제거 - 일기 저장 시 백엔드에서 자동 분석
 
 interface Message {
@@ -69,6 +69,12 @@ export const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { logout, isAuthenticated } = useLoginStore();
+  
+  // 자기소개글 관련 상태
+  const [about, setAbout] = useState<About | null>(null);
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [aboutContent, setAboutContent] = useState("");
+  const [isLoadingAbout, setIsLoadingAbout] = useState(false);
 
   // 사용자 ID 가져오기
   const userId = getUserIdFromToken();
@@ -125,6 +131,58 @@ export const ChatInterface: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
+
+  const loadAbout = async () => {
+    try {
+      setIsLoadingAbout(true);
+      const aboutData = await getAbout();
+      setAbout(aboutData);
+      if (aboutData) {
+        setAboutContent(aboutData.content);
+      }
+    } catch (error) {
+      console.error("[ChatInterface] 자기소개글 로드 실패:", error);
+    } finally {
+      setIsLoadingAbout(false);
+    }
+  };
+
+  const handleSaveAbout = async () => {
+    try {
+      setIsLoadingAbout(true);
+      if (about) {
+        // 수정
+        const updated = await updateAbout(aboutContent);
+        setAbout(updated);
+      } else {
+        // 생성
+        const created = await saveAbout(aboutContent);
+        setAbout(created);
+      }
+      setIsEditingAbout(false);
+    } catch (error) {
+      console.error("[ChatInterface] 자기소개글 저장 실패:", error);
+      alert("자기소개글 저장에 실패했습니다.");
+    } finally {
+      setIsLoadingAbout(false);
+    }
+  };
+
+  const handleCancelEditAbout = () => {
+    if (about) {
+      setAboutContent(about.content);
+    } else {
+      setAboutContent("");
+    }
+    setIsEditingAbout(false);
+  };
+
+  // 자기소개글 로드
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      loadAbout();
+    }
+  }, [isAuthenticated, userId]);
 
   // 서버 상태 확인
   useEffect(() => {
@@ -223,11 +281,6 @@ export const ChatInterface: React.FC = () => {
     const userMessage = input.trim();
     setInput("");
     setError(null);
-    
-    // 포커스를 즉시 유지
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
 
     // 사용자 메시지 추가
     const newUserMessage: Message = {
@@ -320,18 +373,24 @@ export const ChatInterface: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
-      // 포커스 복원을 다음 이벤트 루프에서 수행하여 확실히 적용
+      // 포커스 복원을 약간의 지연 후 수행하여 확실히 적용
       setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
-      handleSend();
+      await handleSend();
+      // Enter 키 입력 후 포커스 유지
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -354,45 +413,87 @@ export const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
-      <header className="w-full border-b border-gray-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img 
-              src="/aiionlogo.png" 
-              alt="AIion Logo" 
-              className="w-12 h-12 object-contain"
-            />
-            {/* Server Status Indicator */}
-            {serverStatus && (
-              <div className="flex items-center gap-2 ml-4">
-                {serverStatus === "checking" && (
-                  <span className="text-xs text-gray-500">서버 확인 중...</span>
-                )}
-                {serverStatus === "online" && (
-                  <span className="flex items-center gap-1 text-xs text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    서버 연결됨
-                  </span>
-                )}
-                {serverStatus === "offline" && (
-                  <span className="flex items-center gap-1 text-xs text-red-600">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    서버 연결 안 됨
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+    <div className="min-h-screen bg-white flex">
+      {/* Left Sidebar Menu */}
+      <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col sticky top-0 h-screen">
+        {/* Brand */}
+        <div className="p-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            hohyun
+          </h1>
+        </div>
 
-          {/* User Menu */}
-          <div className="flex items-center gap-4">
+        {/* Menu Items */}
+        <nav className="flex-1 p-4 space-y-2">
+          <button
+            onClick={() => router.push("/generate")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            title="이미지 생성"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2v20M2 12h20" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>이미지 생성</span>
+          </button>
+          <button
+            onClick={() => router.push("/yolo")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            title="YOLO 업로드"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+            <span>YOLO 업로드</span>
+          </button>
+          <button
+            onClick={() => router.push("/history")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            title="역사기록"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+            <span>역사기록</span>
+          </button>
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          {messages.length > 0 && (
             <button
-              onClick={() => router.push("/diaries")}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              title="일기 리스트"
+              onClick={handleClearChat}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+              title="대화 초기화"
             >
               <svg
                 width="20"
@@ -404,72 +505,81 @@ export const ChatInterface: React.FC = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
               </svg>
-              <span>일기 리스트</span>
+              <span>초기화</span>
             </button>
-            {messages.length > 0 && (
-              <button
-                onClick={handleClearChat}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                title="대화 초기화"
+          )}
+          {isAuthenticated && (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
-                <span>초기화</span>
-              </button>
-            )}
-            {isAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span>개인</span>
-              </button>
-            )}
-          </div>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>로그아웃</span>
+            </button>
+          )}
         </div>
-      </header>
+      </aside>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-8 relative">
-        {/* Titanic Passengers Info - Left Top */}
-        <TitanicPassengers />
-        <div className="max-w-4xl mx-auto">
+      {/* Main Content Area */}
+      <div className="flex-1 flex min-w-0 gap-4">
+        {/* Left: Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0 max-w-4xl">
+          {/* Header */}
+          <header className="w-full border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-40">
+            <div className="w-full px-6 py-4 flex items-center justify-end">
+              {/* Server Status */}
+              {serverStatus && (
+                <div className="flex items-center gap-2">
+                  {serverStatus === "checking" && (
+                    <span className="text-xs text-gray-500">서버 확인 중...</span>
+                  )}
+                  {serverStatus === "online" && (
+                    <span className="flex items-center gap-1 text-xs text-green-600">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      서버 연결됨
+                    </span>
+                  )}
+                  {serverStatus === "offline" && (
+                    <span className="flex items-center gap-1 text-xs text-red-600">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      서버 연결 안 됨
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </header>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-6 py-8 relative">
+            <div className="w-full">
+              <div className="max-w-3xl">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-20">
-            <img 
-              src="/aiionlogo.png" 
-              alt="AIion Logo" 
-              className="w-24 h-24 object-contain mb-4"
-            />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">무엇을 알고 싶으세요?</h2>
-              <p className="text-gray-500">질문을 입력하면 AI가 답변해드립니다.</p>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6 shadow-lg">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">무엇을 알고 싶으세요?</h2>
+              <p className="text-gray-500 text-lg">질문을 입력하면 AI가 답변해드립니다.</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -479,23 +589,23 @@ export const ChatInterface: React.FC = () => {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    className={`max-w-[80%] rounded-2xl px-5 py-4 shadow-sm ${
                       msg.role === "user"
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-900"
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                        : "bg-white border border-gray-200 text-gray-900"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                   </div>
                 </div>
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm">
+                    <div className="flex gap-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </div>
@@ -503,134 +613,176 @@ export const ChatInterface: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          {/* Model Selection Buttons */}
-          <div className="flex gap-3 mb-4 flex-wrap">
-            <button
-              onClick={() => setSelectedModel("openai")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors text-sm ${
-                selectedModel === "openai"
-                  ? "bg-blue-50 border-blue-500 text-blue-700"
-                  : "border-gray-300 hover:bg-gray-50 text-gray-700"
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full ${selectedModel === "openai" ? "bg-blue-500" : "bg-gray-300"}`} />
-              <span>OpenAI</span>
-            </button>
-            <button
-              onClick={() => setSelectedModel("llama")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors text-sm ${
-                selectedModel === "llama"
-                  ? "bg-purple-50 border-purple-500 text-purple-700"
-                  : "border-gray-300 hover:bg-gray-50 text-gray-700"
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full ${selectedModel === "llama" ? "bg-purple-500" : "bg-gray-300"}`} />
-              <span>Llama</span>
-            </button>
+              </div>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 mb-4 flex-wrap">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors text-sm">
-              <div className="w-4 h-4 rounded-full bg-black" />
-              <span>DeepSearch</span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors text-sm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="12" y1="3" x2="12" y2="21" />
-              </svg>
-              <span>Create Image</span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors text-sm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
-              </svg>
-              <span>최근 뉴스</span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors text-sm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-              <span>음성</span>
-            </button>
-          </div>
-
-          {/* Input Field */}
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend(e);
-            }} 
-            className="relative"
-          >
-            <div className="flex items-center gap-3 bg-white border-2 border-gray-300 rounded-2xl px-4 py-3 focus-within:border-gray-900 transition-colors">
-              {/* Paperclip Icon */}
-              <button
-                type="button"
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="파일 첨부"
+          {/* Input Area */}
+          <div className="border-t border-gray-100 bg-white/95 backdrop-blur-sm">
+            <div className="w-full px-6 py-6">
+              {/* Input Field with Model Selection */}
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await handleSend(e);
+                  // 메시지 전송 후 포커스 유지
+                  setTimeout(() => {
+                    inputRef.current?.focus();
+                  }, 50);
+                }} 
+                className="relative"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                </svg>
-              </button>
+                <div className="flex items-center gap-3 w-full max-w-3xl">
+              {/* Model Selection Dropdown */}
+              <div className="relative">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value as "openai" | "llama")}
+                  className="appearance-none bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-10 text-sm font-medium text-gray-700 hover:border-gray-300 focus:border-purple-400 focus:outline-none transition-all cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="llama">Llama</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
 
               {/* Input */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="무엇을 알고 싶으세요?"
-                className="flex-1 outline-none text-gray-900 placeholder-gray-400 bg-transparent"
-                readOnly={isLoading}
-                autoFocus
-              />
+              <div className="flex-1 flex items-center gap-3 bg-gradient-to-r from-gray-50 to-white border-2 border-gray-200 rounded-2xl px-5 py-4 focus-within:border-purple-400 focus-within:shadow-lg focus-within:shadow-purple-100 transition-all">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="무엇이든 물어보세요"
+                  className="flex-1 outline-none text-gray-900 placeholder-gray-400 bg-transparent text-base"
+                  readOnly={isLoading}
+                  autoFocus
+                />
 
-              {/* Auto Dropdown & Mic Button */}
-              <div className="flex items-center gap-2">
+                {/* Send Button */}
                 <button
-                  type="button"
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    input.trim() && !isLoading
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-md hover:shadow-lg"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
+                  aria-label="전송"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
-                  <span>자동</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-colors"
-                  aria-label="음성 입력"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" y1="19" x2="12" y2="23" />
-                    <line x1="8" y1="23" x2="16" y2="23" />
+                  <svg 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="mt-2 text-sm text-red-600 px-4">{error}</div>
+              <div className="mt-3 text-sm text-red-600 px-2 text-center w-full">{error}</div>
             )}
           </form>
+            </div>
+          </div>
         </div>
+
+        {/* Right: 자기소개 영역 */}
+        {isAuthenticated && (
+          <aside className="w-[750px] min-w-[700px] mr-4 my-4 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border border-purple-200 rounded-2xl flex flex-col sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto shadow-lg">
+            <div className="p-5 border-b border-purple-200 bg-white/60 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  자기소개
+                </h2>
+                {!isEditingAbout && (
+                  <button
+                    onClick={() => setIsEditingAbout(true)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    {about ? "수정" : "작성"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 p-5">
+              {isEditingAbout ? (
+                <div className="space-y-4">
+                  <textarea
+                    value={aboutContent}
+                    onChange={(e) => setAboutContent(e.target.value)}
+                    placeholder="자기소개를 입력하세요..."
+                    className="w-full px-4 py-3 text-base border-2 border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-none bg-white shadow-sm"
+                    style={{ minHeight: '675px' }}
+                    disabled={isLoadingAbout}
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSaveAbout}
+                      disabled={isLoadingAbout}
+                      className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                    >
+                      {isLoadingAbout ? "저장 중..." : "저장"}
+                    </button>
+                    <button
+                      onClick={handleCancelEditAbout}
+                      disabled={isLoadingAbout}
+                      className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border-2 border-gray-300 rounded-lg transition-all disabled:opacity-50"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-base text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                  {isLoadingAbout ? (
+                    <div className="flex items-center justify-center py-32">
+                      <div className="text-purple-400 text-lg">로딩 중...</div>
+                    </div>
+                  ) : about ? (
+                    about.content || (
+                      <div className="text-purple-400 italic text-center py-32 text-lg">
+                        자기소개가 없습니다.
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-purple-400 italic text-center py-32 text-lg">
+                      자기소개를 작성해보세요.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

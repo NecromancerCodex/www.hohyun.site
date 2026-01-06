@@ -61,25 +61,6 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen">
-      {/* 지도 및 기능 버튼들 - 상단 고정 */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
-        <Link href="/generate">
-          <Button 
-            variant="primary" 
-            className="w-auto px-6 py-3 shadow-lg hover:shadow-xl transition-shadow bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
-          >
-            🎨 이미지 생성
-          </Button>
-        </Link>
-        <Link href="/yolo">
-          <Button 
-            variant="primary" 
-            className="w-auto px-6 py-3 shadow-lg hover:shadow-xl transition-shadow bg-purple-500 hover:bg-purple-600"
-          >
-            📷 YOLO 업로드
-          </Button>
-        </Link>
-      </div>
       <ChatInterface />
     </div>
   );

@@ -1,10 +1,7 @@
 "use client";
 
 import React from "react";
-import { FormInput } from "../molecules/FormInput";
 import { Button } from "../atoms/Button";
-import { Checkbox } from "../atoms/Checkbox";
-import { Link } from "../atoms/Link";
 import { GoogleLoginButton } from "../molecules/GoogleLoginButton";
 import { KakaoLoginButton } from "../molecules/KakaoLoginButton";
 import { NaverLoginButton } from "../molecules/NaverLoginButton";
@@ -12,74 +9,28 @@ import { useLoginStore } from "@/store";
 
 export const LoginContainer: React.FC = () => {
   const {
-    username,
-    password,
-    rememberMe,
-    setUsername,
-    setPassword,
-    setRememberMe,
-    handleLogin,
     handleGoogleLogin,
     handleKakaoLogin,
     handleNaverLogin,
     handleGuestLogin,
   } = useLoginStore();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleLogin();
-  };
-
   return (
     <div className="relative w-full max-w-md">
+      {/* Brand Header */}
+      <div className="text-center mb-10">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+          hohyun
+        </h1>
+        <p className="text-gray-700 text-lg leading-relaxed">
+          안녕하세요! 👋<br />
+          저의 홈페이지에 찾아주셔서 감사합니다.
+        </p>
+      </div>
+
       {/* Login Form Container */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username Input */}
-          <FormInput
-            type="text"
-            value={username}
-            onChange={setUsername}
-            placeholder="Username"
-            icon="user"
-          />
-
-          {/* Password Input */}
-          <FormInput
-            type="password"
-            value={password}
-            onChange={setPassword}
-            placeholder="Password"
-            icon="lock"
-          />
-
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between">
-            <Checkbox
-              checked={rememberMe}
-              onChange={setRememberMe}
-              label="Remember me"
-            />
-            <Link onClick={() => console.log("Forgot password")}>
-              Forgot Password?
-            </Link>
-          </div>
-
-          {/* Login Button */}
-          <Button type="submit" variant="primary">
-            LOGIN
-          </Button>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">OR</span>
-            </div>
-          </div>
-
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-8">
+        <div className="space-y-4">
           {/* Google Login Button */}
           <GoogleLoginButton onClick={handleGoogleLogin} />
 
@@ -100,7 +51,7 @@ export const LoginContainer: React.FC = () => {
               게스트로 접속하기
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
