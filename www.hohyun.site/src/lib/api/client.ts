@@ -80,13 +80,38 @@ class ApiClient {
   // 에러 처리
   private async handleErrorResponse(response: Response, requestedUrl?: string, retry?: () => Promise<Response>): Promise<never> {
     // 401 Unauthorized - Access Token 만료, Refresh Token으로 재발급 시도
-    if (response.status === 401 && retry && !this.isRefreshing && !requestedUrl?.includes("/auth/refresh")) {
-      try {
+    if (response.status === 401 && retry && !requestedUrl?.includes("/auth/refresh")) {
+      // 이미 갱신 중이면 해당 Promise 재사용 (동시 요청 방지)
+      if (this.isRefreshing && this.refreshPromise) {
+        try {
+          await this.refreshPromise;
+          // 원래 요청 재시도
+          const retriedResponse = await retry();
+          if (retriedResponse.ok) {
+            return retriedResponse as never;
+          }
+          // 재시도도 실패하면 에러
+          throw new Error("토큰 갱신 후에도 요청이 실패했습니다.");
+        } catch (error) {
+          // 갱신 실패 시 로그아웃
+          if (error instanceof Error && error.message.includes("토큰 갱신 실패")) {
+            if (typeof window !== "undefined") {
+              const store = (window as any).__loginStore;
+              if (store) {
+                store.getState().logout();
+              }
+            }
+          }
+          throw error;
+        }
+      }
+      
+      // 새로운 갱신 시작
+      if (!this.isRefreshing) {
         this.isRefreshing = true;
         
-        // 이미 갱신 중이면 해당 Promise 재사용
-        if (!this.refreshPromise) {
-          this.refreshPromise = (async () => {
+        this.refreshPromise = (async () => {
+          try {
             const { refreshAccessToken } = await import("./auth");
             const newToken = await refreshAccessToken();
             
@@ -99,12 +124,30 @@ class ApiClient {
             }
             
             return newToken;
-          })();
-        }
-        
+          } catch (error) {
+            // 갱신 실패 시 상태 정리
+            this.isRefreshing = false;
+            this.refreshPromise = null;
+            
+            // Refresh Token도 만료된 경우 로그아웃
+            if (typeof window !== "undefined") {
+              const store = (window as any).__loginStore;
+              if (store) {
+                store.getState().logout();
+              }
+            }
+            
+            throw new Error("토큰 갱신 실패: " + (error instanceof Error ? error.message : "알 수 없는 오류"));
+          }
+        })();
+      }
+      
+      try {
         await this.refreshPromise;
-        this.refreshPromise = null;
+        
+        // 갱신 성공 후 상태 정리
         this.isRefreshing = false;
+        this.refreshPromise = null;
         
         // 원래 요청 재시도
         const retriedResponse = await retry();
@@ -112,20 +155,10 @@ class ApiClient {
           return retriedResponse as never;
         }
         
-        // 재시도도 실패하면 로그아웃
+        // 재시도도 실패하면 에러
         throw new Error("토큰 갱신 후에도 요청이 실패했습니다.");
       } catch (refreshError) {
-        this.isRefreshing = false;
-        this.refreshPromise = null;
-        
-        // Refresh Token도 만료된 경우 로그아웃
-        if (typeof window !== "undefined") {
-          const store = (window as any).__loginStore;
-          if (store) {
-            store.getState().logout();
-          }
-        }
-        
+        // 에러는 이미 refreshPromise 내부에서 처리됨
         throw refreshError;
       }
     }

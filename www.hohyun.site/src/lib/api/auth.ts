@@ -40,8 +40,19 @@ export const logout = async (): Promise<void> => {
 
 // Access Token 갱신 (Refresh Token은 HttpOnly 쿠키로 자동 전송)
 export const refreshAccessToken = async (): Promise<string> => {
-  const { data } = await apiClient.post<{ access_token: string }>("/api/auth/refresh");
-  return data.access_token;
+  try {
+    const { data } = await apiClient.post<{ access_token: string }>("/api/auth/refresh");
+    if (!data?.access_token) {
+      throw new Error("토큰 갱신 응답에 access_token이 없습니다.");
+    }
+    return data.access_token;
+  } catch (error: any) {
+    // 네트워크 에러나 401 에러는 Refresh Token 만료를 의미
+    if (error.response?.status === 401 || error.code === "ECONNREFUSED") {
+      throw new Error("Refresh Token이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.");
+    }
+    throw error;
+  }
 };
 
 // JWT 토큰에서 사용자 ID 추출 (메모리에서 토큰 가져와야 함)
