@@ -713,27 +713,26 @@ export const ChatInterface: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: 자기소개 영역 */}
-        {isAuthenticated && (
-          <aside className="w-[750px] min-w-[700px] mr-4 my-4 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border border-purple-200 rounded-2xl flex flex-col sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto shadow-lg">
-            <div className="p-5 border-b border-purple-200 bg-white/60 backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  자기소개
-                </h2>
-                {!isEditingAbout && (
-                  <button
-                    onClick={() => setIsEditingAbout(true)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
-                  >
-                    {about ? "수정" : "작성"}
-                  </button>
-                )}
-              </div>
+        {/* Right: 자기소개 영역 - 게스트 포함 모두 조회 가능 */}
+        <aside className="w-[750px] min-w-[700px] mr-4 my-4 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border border-purple-200 rounded-2xl flex flex-col sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto shadow-lg">
+          <div className="p-5 border-b border-purple-200 bg-white/60 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                자기소개
+              </h2>
+              {!isEditingAbout && isAuthenticated && isOwner && (
+                <button
+                  onClick={() => setIsEditingAbout(true)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+                >
+                  {about ? "수정" : "작성"}
+                </button>
+              )}
             </div>
+          </div>
 
-            <div className="flex-1 p-5">
-              {isEditingAbout ? (
+          <div className="flex-1 p-5">
+            {isEditingAbout && isOwner ? (
                 <div className="space-y-4">
                   <textarea
                     value={aboutContent}
@@ -781,7 +780,6 @@ export const ChatInterface: React.FC = () => {
               )}
             </div>
           </aside>
-        )}
       </div>
     </div>
   );
