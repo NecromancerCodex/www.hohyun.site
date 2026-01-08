@@ -13,18 +13,25 @@ import {
 
 export default function GroupChatPage() {
   const router = useRouter();
-  const { isAuthenticated, accessToken } = useLoginStore();
+  const { isAuthenticated, accessToken, restoreAuthState } = useLoginStore();
   const [messages, setMessages] = useState<GroupChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const lastMessageIdRef = useRef<number>(0);
 
   const userId = getUserIdFromToken(accessToken || undefined);
+
+  // 인증 상태 복원 (새로고침 시)
+  useEffect(() => {
+    setIsHydrated(true);
+    restoreAuthState();
+  }, [restoreAuthState]);
 
   // 메시지 목록 로드
   const loadMessages = async () => {
@@ -112,8 +119,10 @@ export default function GroupChatPage() {
     };
   };
 
-  // 초기 로드 및 SSE 연결
+  // 초기 로드 및 SSE 연결 (hydration 완료 후)
   useEffect(() => {
+    if (!isHydrated) return;
+
     const initializeChat = async () => {
       // 초기 메시지 로드
       await loadMessages();
@@ -129,7 +138,7 @@ export default function GroupChatPage() {
         eventSourceRef.current = null;
       }
     };
-  }, []); // 초기 로드만 실행
+  }, [isHydrated]); // hydration 완료 후 실행
 
   // 새 메시지가 추가될 때 스크롤
   useEffect(() => {
@@ -155,8 +164,33 @@ export default function GroupChatPage() {
 
     try {
       const response = await sendGroupChatMessage(messageText, accessToken);
-      if (response.code === 200) {
-        // 메시지 전송 성공 (SSE로 자동 업데이트됨)
+      if (response.code === 200 && response.data) {
+        // 메시지 전송 성공 - 즉시 화면에 반영 (카카오톡처럼)
+        // 백엔드에서 단일 객체를 반환하므로 직접 사용
+        const newMessage = Array.isArray(response.data) ? response.data[0] : response.data as GroupChatMessage;
+        
+        if (newMessage.id) {
+          // lastMessageId 업데이트
+          if (newMessage.id > lastMessageIdRef.current) {
+            lastMessageIdRef.current = newMessage.id;
+          }
+
+          // 즉시 메시지 추가 (실시간 반영)
+          setMessages((prev) => {
+            // 중복 체크 (SSE가 나중에 같은 메시지를 보낼 수 있으므로)
+            if (prev.some((msg) => msg.id === newMessage.id)) {
+              return prev; // 이미 있으면 중복 추가 방지
+            }
+            // 시간순으로 정렬하여 추가
+            const newMessages = [...prev, newMessage].sort((a, b) => {
+              const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return timeA - timeB;
+            });
+            return newMessages;
+          });
+        }
+        
         setTimeout(() => {
           inputRef.current?.focus();
         }, 100);
