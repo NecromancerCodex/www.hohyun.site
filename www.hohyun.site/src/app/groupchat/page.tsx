@@ -69,19 +69,41 @@ export default function GroupChatPage() {
 
     const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.hohyun.site";
     const url = `${apiUrl}/api/groupchat/stream?lastId=${lastMessageIdRef.current}`;
-    console.log("[SSE] 연결 시작:", url);
+    console.log("[SSE] ========== 연결 시작 ==========");
+    console.log("[SSE] URL:", url);
+    console.log("[SSE] lastMessageId:", lastMessageIdRef.current);
     
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    eventSource.onopen = () => {
-      console.log("[SSE] 연결 성공");
+    // 연결 상태 모니터링
+    const stateNames = ['CONNECTING', 'OPEN', 'CLOSED'];
+    console.log("[SSE] 초기 상태:", stateNames[eventSource.readyState]);
+
+    // 상태 체크 인터벌 (디버깅용)
+    const stateCheckInterval = setInterval(() => {
+      if (eventSource.readyState === EventSource.OPEN) {
+        console.log("[SSE] ✓ 연결 활성화 상태 (OPEN)");
+      } else if (eventSource.readyState === EventSource.CONNECTING) {
+        console.log("[SSE] ⏳ 연결 중... (CONNECTING)");
+      } else if (eventSource.readyState === EventSource.CLOSED) {
+        console.log("[SSE] ✗ 연결 종료됨 (CLOSED)");
+        clearInterval(stateCheckInterval);
+      }
+    }, 2000);
+
+    eventSource.onopen = (event) => {
+      console.log("[SSE] ========== 연결 성공! ==========");
+      console.log("[SSE] ReadyState:", stateNames[eventSource.readyState]);
+      console.log("[SSE] Event:", event);
     };
 
-    eventSource.addEventListener("message", (event) => {
+    eventSource.onmessage = (event) => {
+      console.log("[SSE] ========== onmessage 수신 ==========");
+      console.log("[SSE] Raw event.data:", event.data);
       try {
         const data = JSON.parse(event.data);
-        console.log("[SSE] 메시지 수신:", data);
+        console.log("[SSE] 파싱된 메시지:", data);
         
         if (data.id) {
           // lastMessageId 업데이트
@@ -96,7 +118,7 @@ export default function GroupChatPage() {
               console.log("[SSE] 중복 메시지 무시:", data.id);
               return prev;
             }
-            console.log("[SSE] 새 메시지 추가:", data.id);
+            console.log("[SSE] ✓ 새 메시지 추가:", data.id);
             // 시간순으로 정렬하여 추가
             const newMessages = [...prev, data].sort((a, b) => {
               const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -109,16 +131,25 @@ export default function GroupChatPage() {
       } catch (err) {
         console.error("[SSE] 이벤트 파싱 오류:", err, event.data);
       }
+    };
+
+    // named event listener도 추가
+    eventSource.addEventListener("message", (event) => {
+      console.log("[SSE] ========== addEventListener 'message' 수신 ==========");
+      console.log("[SSE] Event:", event);
     });
 
-    eventSource.addEventListener("ping", () => {
-      // keep-alive 이벤트
-      console.log("[SSE] keep-alive ping");
+    eventSource.addEventListener("ping", (event) => {
+      console.log("[SSE] keep-alive ping 수신");
     });
 
     eventSource.onerror = (err) => {
       const readyState = eventSource.readyState;
-      console.error("[SSE] 연결 오류:", { readyState, err });
+      console.error("[SSE] ========== 연결 오류 ==========");
+      console.error("[SSE] ReadyState:", stateNames[readyState]);
+      console.error("[SSE] Error:", err);
+      
+      clearInterval(stateCheckInterval);
       
       // CLOSED 상태면 재연결 필요
       if (readyState === EventSource.CLOSED) {
@@ -132,6 +163,14 @@ export default function GroupChatPage() {
             connectSSE();
           }
         }, 3000);
+      }
+    };
+
+    // 정리 함수
+    return () => {
+      clearInterval(stateCheckInterval);
+      if (eventSource) {
+        eventSource.close();
       }
     };
   };
