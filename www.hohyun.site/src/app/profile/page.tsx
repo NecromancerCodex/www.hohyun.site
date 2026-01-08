@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useLoginStore } from "@/store";
 import { getUserIdFromToken } from "@/lib/api/auth";
 import { getUserById, updateUser, User } from "@/lib/api/user";
-import { ChatInterface } from "@/components/organisms/ChatInterface";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -92,13 +91,96 @@ export default function ProfilePage() {
     }
   };
 
+  const { logout, restoreAuthState } = useLoginStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // 인증 상태 복원 (새로고침 시)
+  useEffect(() => {
+    setIsHydrated(true);
+    restoreAuthState();
+  }, [restoreAuthState]);
+
+  const handleLogout = async () => {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      await logout();
+    }
+  };
+
   // 게스트 모드 체크
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-400 text-lg">로딩 중...</div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated || !userId) {
     return (
       <div className="min-h-screen bg-white flex">
-        <div className="w-64 flex-shrink-0">
-          <ChatInterface />
-        </div>
+        {/* Left Sidebar */}
+        <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col sticky top-0 h-screen">
+          <div className="p-6 border-b border-gray-200">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              hohyun
+            </h1>
+          </div>
+          <nav className="flex-1 p-4 space-y-2">
+            <button
+              onClick={() => router.push("/generate")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M2 12h20" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>이미지 생성</span>
+            </button>
+            <button
+              onClick={() => router.push("/yolo")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              <span>YOLO 업로드</span>
+            </button>
+            <button
+              onClick={() => router.push("/history")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+              <span>역사기록</span>
+            </button>
+            <button
+              onClick={() => router.push("/groupchat")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <path d="M13 8H7" />
+                <path d="M17 12H7" />
+              </svg>
+              <span>단체 채팅</span>
+            </button>
+          </nav>
+          <div className="p-4 border-t border-gray-200 space-y-2">
+            <button
+              onClick={() => router.push("/profile")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m16.364-6.364l-4.243 4.243M7.879 16.121l-4.243 4.243m12.728 0l-4.243-4.243M7.879 7.879L3.636 3.636" />
+              </svg>
+              <span>설정</span>
+            </button>
+          </div>
+        </aside>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="text-gray-600 text-lg mb-4">로그인이 필요합니다.</div>
@@ -116,10 +198,90 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-white flex">
-      {/* Left Sidebar - ChatInterface 컴포넌트 재사용 */}
-      <div className="w-64 flex-shrink-0">
-        <ChatInterface />
-      </div>
+      {/* Left Sidebar - 자기소개 제외 */}
+      <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col sticky top-0 h-screen">
+        <div className="p-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            hohyun
+          </h1>
+        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          <button
+            onClick={() => router.push("/home")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span>홈</span>
+          </button>
+          <button
+            onClick={() => router.push("/generate")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v20M2 12h20" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>이미지 생성</span>
+          </button>
+          <button
+            onClick={() => router.push("/yolo")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+            <span>YOLO 업로드</span>
+          </button>
+          <button
+            onClick={() => router.push("/history")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+            <span>역사기록</span>
+          </button>
+          <button
+            onClick={() => router.push("/groupchat")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M13 8H7" />
+              <path d="M17 12H7" />
+            </svg>
+            <span>단체 채팅</span>
+          </button>
+        </nav>
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          <button
+            onClick={() => router.push("/profile")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-600 bg-purple-50 border-2 border-purple-300 rounded-lg transition-all"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m16.364-6.364l-4.243 4.243M7.879 16.121l-4.243 4.243m12.728 0l-4.243-4.243M7.879 7.879L3.636 3.636" />
+            </svg>
+            <span>설정</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>로그아웃</span>
+          </button>
+        </div>
+      </aside>
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
