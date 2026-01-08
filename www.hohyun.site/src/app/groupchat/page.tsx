@@ -139,6 +139,10 @@ export default function GroupChatPage() {
       console.log("[SSE] Event:", event);
     });
 
+    eventSource.addEventListener("connected", (event) => {
+      console.log("[SSE] ✓ 연결 확립 이벤트 수신:", event.data);
+    });
+
     eventSource.addEventListener("ping", (event) => {
       console.log("[SSE] keep-alive ping 수신");
     });
