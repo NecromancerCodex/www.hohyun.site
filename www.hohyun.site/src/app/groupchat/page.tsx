@@ -62,32 +62,41 @@ export default function GroupChatPage() {
   const connectSSE = () => {
     // 기존 연결이 있으면 닫기
     if (eventSourceRef.current) {
+      console.log("[SSE] 기존 연결 종료");
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.hohyun.site";
-    const eventSource = new EventSource(
-      `${apiUrl}/api/groupchat/stream?lastId=${lastMessageIdRef.current}`
-    );
-
+    const url = `${apiUrl}/api/groupchat/stream?lastId=${lastMessageIdRef.current}`;
+    console.log("[SSE] 연결 시작:", url);
+    
+    const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => {
+      console.log("[SSE] 연결 성공");
+    };
 
     eventSource.addEventListener("message", (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("[SSE] 메시지 수신:", data);
+        
         if (data.id) {
           // lastMessageId 업데이트
           if (data.id > lastMessageIdRef.current) {
             lastMessageIdRef.current = data.id;
           }
 
-          // 새 메시지 추가
+          // 새 메시지 추가 (카카오톡처럼 즉시 표시)
           setMessages((prev) => {
             // 중복 체크
             if (prev.some((msg) => msg.id === data.id)) {
+              console.log("[SSE] 중복 메시지 무시:", data.id);
               return prev;
             }
+            console.log("[SSE] 새 메시지 추가:", data.id);
             // 시간순으로 정렬하여 추가
             const newMessages = [...prev, data].sort((a, b) => {
               const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -98,24 +107,32 @@ export default function GroupChatPage() {
           });
         }
       } catch (err) {
-        console.error("SSE 이벤트 파싱 오류:", err);
+        console.error("[SSE] 이벤트 파싱 오류:", err, event.data);
       }
     });
 
     eventSource.addEventListener("ping", () => {
-      // keep-alive 이벤트, 아무 작업도 하지 않음
+      // keep-alive 이벤트
+      console.log("[SSE] keep-alive ping");
     });
 
     eventSource.onerror = (err) => {
-      console.error("SSE 연결 오류:", err);
-      eventSource.close();
-      eventSourceRef.current = null;
-      // 3초 후 재연결
-      setTimeout(() => {
-        if (eventSourceRef.current === null || eventSourceRef.current.readyState === EventSource.CLOSED) {
-          connectSSE();
-        }
-      }, 3000);
+      const readyState = eventSource.readyState;
+      console.error("[SSE] 연결 오류:", { readyState, err });
+      
+      // CLOSED 상태면 재연결 필요
+      if (readyState === EventSource.CLOSED) {
+        console.log("[SSE] 연결 종료됨, 3초 후 재연결 시도");
+        eventSource.close();
+        eventSourceRef.current = null;
+        
+        setTimeout(() => {
+          if (eventSourceRef.current === null || eventSourceRef.current.readyState === EventSource.CLOSED) {
+            console.log("[SSE] 재연결 시도");
+            connectSSE();
+          }
+        }, 3000);
+      }
     };
   };
 
@@ -164,10 +181,13 @@ export default function GroupChatPage() {
 
     try {
       const response = await sendGroupChatMessage(messageText, accessToken);
+      console.log("[메시지 전송] 응답:", response);
+      
       if (response.code === 200 && response.data) {
         // 메시지 전송 성공 - 즉시 화면에 반영 (카카오톡처럼)
         // 백엔드에서 단일 객체를 반환하므로 직접 사용
         const newMessage = Array.isArray(response.data) ? response.data[0] : response.data as GroupChatMessage;
+        console.log("[메시지 전송] 새 메시지:", newMessage);
         
         if (newMessage.id) {
           // lastMessageId 업데이트
@@ -179,8 +199,10 @@ export default function GroupChatPage() {
           setMessages((prev) => {
             // 중복 체크 (SSE가 나중에 같은 메시지를 보낼 수 있으므로)
             if (prev.some((msg) => msg.id === newMessage.id)) {
+              console.log("[메시지 전송] 중복 메시지 무시:", newMessage.id);
               return prev; // 이미 있으면 중복 추가 방지
             }
+            console.log("[메시지 전송] 새 메시지 즉시 추가:", newMessage.id);
             // 시간순으로 정렬하여 추가
             const newMessages = [...prev, newMessage].sort((a, b) => {
               const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
