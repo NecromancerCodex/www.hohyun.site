@@ -7,6 +7,7 @@ import { getUserIdFromToken } from "@/lib/api/auth";
 import {
   getRecentGroupChatMessages,
   sendGroupChatMessage,
+  deleteAllGroupChatMessages,
   GroupChatMessage,
 } from "@/lib/api/groupchat";
 
@@ -20,7 +21,8 @@ export default function GroupChatPage() {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const lastMessageIdRef = useRef<number>(0);
 
   const userId = getUserIdFromToken(accessToken || undefined);
 
@@ -33,6 +35,11 @@ export default function GroupChatPage() {
         // 최신순이므로 역순으로 정렬 (오래된 것부터 표시)
         const sortedMessages = [...response.data].reverse();
         setMessages(sortedMessages);
+        
+        // 마지막 메시지 ID 저장
+        if (sortedMessages.length > 0 && sortedMessages[sortedMessages.length - 1]?.id) {
+          lastMessageIdRef.current = sortedMessages[sortedMessages.length - 1].id || 0;
+        }
       } else {
         setError(response.message || "메시지를 불러올 수 없습니다.");
       }
@@ -44,21 +51,85 @@ export default function GroupChatPage() {
     }
   };
 
-  // 주기적으로 메시지 업데이트 (실시간 채팅 효과)
-  useEffect(() => {
-    loadMessages();
+  // SSE 연결 함수
+  const connectSSE = () => {
+    // 기존 연결이 있으면 닫기
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
 
-    // 3초마다 새 메시지 확인
-    pollIntervalRef.current = setInterval(() => {
-      loadMessages();
-    }, 3000);
+    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.hohyun.site";
+    const eventSource = new EventSource(
+      `${apiUrl}/api/groupchat/stream?lastId=${lastMessageIdRef.current}`
+    );
+
+    eventSourceRef.current = eventSource;
+
+    eventSource.addEventListener("message", (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.id) {
+          // lastMessageId 업데이트
+          if (data.id > lastMessageIdRef.current) {
+            lastMessageIdRef.current = data.id;
+          }
+
+          // 새 메시지 추가
+          setMessages((prev) => {
+            // 중복 체크
+            if (prev.some((msg) => msg.id === data.id)) {
+              return prev;
+            }
+            // 시간순으로 정렬하여 추가
+            const newMessages = [...prev, data].sort((a, b) => {
+              const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return timeA - timeB;
+            });
+            return newMessages;
+          });
+        }
+      } catch (err) {
+        console.error("SSE 이벤트 파싱 오류:", err);
+      }
+    });
+
+    eventSource.addEventListener("ping", () => {
+      // keep-alive 이벤트, 아무 작업도 하지 않음
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("SSE 연결 오류:", err);
+      eventSource.close();
+      eventSourceRef.current = null;
+      // 3초 후 재연결
+      setTimeout(() => {
+        if (eventSourceRef.current === null || eventSourceRef.current.readyState === EventSource.CLOSED) {
+          connectSSE();
+        }
+      }, 3000);
+    };
+  };
+
+  // 초기 로드 및 SSE 연결
+  useEffect(() => {
+    const initializeChat = async () => {
+      // 초기 메시지 로드
+      await loadMessages();
+      // 메시지 로드 후 SSE 연결 시작
+      connectSSE();
+    };
+
+    initializeChat();
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
-  }, []);
+  }, []); // 초기 로드만 실행
 
   // 새 메시지가 추가될 때 스크롤
   useEffect(() => {
@@ -85,8 +156,7 @@ export default function GroupChatPage() {
     try {
       const response = await sendGroupChatMessage(messageText, accessToken);
       if (response.code === 200) {
-        // 메시지 전송 성공 후 목록 새로고침
-        await loadMessages();
+        // 메시지 전송 성공 (SSE로 자동 업데이트됨)
         setTimeout(() => {
           inputRef.current?.focus();
         }, 100);
@@ -282,13 +352,36 @@ export default function GroupChatPage() {
                 모든 사용자가 함께 대화하는 공간입니다
               </p>
             </div>
-            <button
-              onClick={loadMessages}
-              disabled={isLoadingMessages}
-              className="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 transition-all disabled:opacity-50"
-            >
-              {isLoadingMessages ? "새로고침 중..." : "새로고침"}
-            </button>
+            {isAuthenticated && userId === "1" && (
+              <button
+                onClick={async () => {
+                  if (window.confirm("모든 메시지를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                    try {
+                      if (!accessToken) {
+                        setError("로그인이 필요합니다.");
+                        return;
+                      }
+                      const response = await deleteAllGroupChatMessages(accessToken);
+                      if (response.code === 200) {
+                        setMessages([]);
+                        lastMessageIdRef.current = 0;
+                        // SSE 재연결
+                        connectSSE();
+                        alert(response.message);
+                      } else {
+                        setError(response.message || "삭제에 실패했습니다.");
+                      }
+                    } catch (err: any) {
+                      console.error("메시지 삭제 오류:", err);
+                      setError(err.response?.data?.message || err.message || "삭제 중 오류가 발생했습니다.");
+                    }
+                  }
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+              >
+                전체 삭제
+              </button>
+            )}
           </div>
         </header>
 

@@ -67,3 +67,21 @@ export const getRecentGroupChatMessages = async (
   return response.data;
 };
 
+/**
+ * 모든 메시지 삭제 (userId 1만 가능)
+ */
+export const deleteAllGroupChatMessages = async (
+  accessToken: string
+): Promise<GroupChatResponse> => {
+  const response = await axios.delete<GroupChatResponse>(
+    `${API_BASE_URL}/api/groupchat/all`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
+
