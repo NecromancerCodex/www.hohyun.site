@@ -504,7 +504,8 @@ export default function GroupChatPage() {
                   onKeyDown={handleKeyDown}
                   placeholder="메시지를 입력하세요..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-100"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-100 text-gray-900 placeholder-gray-400 bg-white"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
                 <button
                   onClick={handleSend}

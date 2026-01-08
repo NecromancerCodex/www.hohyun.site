@@ -714,6 +714,7 @@ export const ChatInterface: React.FC = () => {
                   onKeyDown={handleKeyDown}
                   placeholder="무엇이든 물어보세요"
                   className="flex-1 outline-none text-gray-900 placeholder-gray-400 bg-transparent text-base"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   readOnly={isLoading}
                   autoFocus
                 />

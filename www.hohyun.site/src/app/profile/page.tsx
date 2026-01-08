@@ -311,7 +311,8 @@ export default function ProfilePage() {
                 }}
                 placeholder="닉네임을 입력하세요 (2~20자)"
                 disabled={isLoading || isSaving}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-100"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-100 text-gray-900 placeholder-gray-400 bg-white"
+                style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
               />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">
