@@ -484,6 +484,27 @@ export const ChatInterface: React.FC = () => {
             </svg>
             <span>역사기록</span>
           </button>
+          <button
+            onClick={() => router.push("/groupchat")}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+            title="단체 채팅"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M13 8H7" />
+              <path d="M17 12H7" />
+            </svg>
+            <span>단체 채팅</span>
+          </button>
         </nav>
 
         {/* Bottom Actions */}
